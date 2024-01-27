@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>DOS Wasm X</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="keywords" content="DOS Emulator, DOS JavaScript Emulator, WebAssembly, HTML5">
+    <meta charset="UTF-8">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rivets/0.9.6/rivets.bundled.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.2/dist/FileSaver.min.js"></script> 
+    <!-- when developing offline -->
+    <!-- <script src="jquery-3.3.1.min.js"></script>
+    <script src="rivets.bundled.min.js"></script>
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <script src="popper.min.js"></script>
+    <script src="bootstrap.min.js"></script>
+    <script src="toastr.min.js"></script>
+    <link rel="stylesheet" href="toastr.min.css">
+    <script src="FileSaver.min.js"></script> 
+    <script src="zip.min.js"></script>-->
+</head>
+<style>
+    input[type="file"] {
+        display: none;
+    }
+
+    .progress {
+        height: 2rem;
+        font-size: 1rem;
+    }
+</style>
+
+<body>
+    <div id="maindiv" class="container text-center">
+        <h1 id="header">
+            DOS Wasm X
+        </h1>
+
+        <div id="topPanel" style="display: none;">
+
+            <!-- BEFORE LOAD -->
+            <div rv-if="data.beforeEmulatorStarted">
+
+                <div class="mt-2 mb-2" rv-if="data.message">
+                    <div rv-html="data.message">
+                    </div>
+                </div>
+                
+                <div class="progress mt-4" id="progressOuter" rv-if="data.showProgress">
+                    <div class="progress-bar bg-info" role="progressbar" id="myProgress">1%</div>
+                </div>
+
+                <button class="btn btn-primary mt-4" onclick="myApp.loadRom();" id="btnLoad"
+                    rv-if="data.loggedIn | ev '==true'"
+                    rv-disabled="data.moduleInitializing">Play Game</button>
+                <span rv-if="data.dblistDisks | ev_string '.length > 0'">
+                    <button class="btn btn-primary mt-4" onclick="myApp.loadRom(true);" id="btnStart"
+                        rv-disabled="data.moduleInitializing"
+                        rv-if="data.loggedIn | ev '==false'">Start Computer</button>    
+                </span>
+                <span rv-if="data.dblistDisks | ev_string '.length == 0'">
+                    <span rv-if="data.settings.DEFAULTIMG">
+                        <button class="btn btn-primary mt-4" onclick="myApp.loadRom(true);" id="btnStart"
+                            rv-disabled="data.moduleInitializing"
+                            rv-if="data.loggedIn | ev '==false'">Start Computer</button>    
+                    </span>
+                </span>
+
+                
+                <button id="btnUploadRom" class="btn btn-primary mt-4" onclick="myApp.uploadBrowse()" 
+                    rv-disabled="data.moduleInitializing">Browse</button>
+                <button id="btnUploadRom" class="btn btn-primary mt-4" onclick="myApp.settingsModal()" 
+                    rv-disabled="data.moduleInitializing">Settings</button>
+                <span rv-if="data.hasCloud">
+                    <button class="btn btn-primary mt-4" rv-if="data.loggedIn | ev '==false'"
+                        onclick="myApp.loginModal()">Login</button>
+                    <button class="btn btn-primary mt-4" rv-if="data.loggedIn | ev '==true'"  
+                        onclick="myApp.logout()">Logout</button>
+                </span>
+                
+        
+                <input id="file-upload" type="file" multiple />
+        
+                <!-- ROM LIST -->
+                <div class="form-group mt-2 mb-4" rv-if="data.loggedIn | ev '==true'"
+                    style="width: 300px;margin-left: auto; margin-right:auto;">
+                    <select class="form-control" id="romselect">
+                        <option rv-each-rom="data.romList" rv-skipiso="rom.skipiso" 
+                            rv-ram="rom.ram" rv-value="rom.url">{rom.title}</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- DRAG AND DROP -->
+            <div style="margin-top:40px;" rv-if="data.beforeEmulatorStarted">
+                <div>
+                    <div id="dropArea" rv-hide="data.moduleInitializing"
+                        style="width: 150px; height: 150px; border: gray 1px solid;margin-left: auto;
+                            color: darkgrey;margin-right: auto; border-style: dashed;">
+                        <br>
+                        <br>
+                        <span>Drag/Drop Files</span>
+                        <br>
+                        <span>ZIP,ISO,BIN,CUE</span>
+                        <br>
+                    </div>
+                </div>
+
+                <div rv-hide="data.settings.DEFAULTIMG">
+                    <div rv-hide="data.moduleInitializing" style="width: 70%; margin-left: auto; margin-right: auto;">
+                        <div rv-hide="data.loggedIn | ev '==true'">
+                            <div class="alert alert-info mt-4" role="alert" rv-if="data.dblistDisks | ev_string '.length == 0'">
+                                To set up your hard disk start by dragging a Windows 95/98 ISO<br> onto the page and proceed with the installation.
+                                <br> Or you can stay in DOS Mode if you prefer!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- AFTER LOAD -->
+            <div style="display: inline;" rv-hide="data.beforeEmulatorStarted" id="afterLoadDiv">
+
+                <div class="mt-2 mb-2" rv-if="data.message">
+                    <div rv-html="data.message">
+                    </div>
+                </div>
+                
+
+                <button class="btn btn-primary mt-2 mb-2" onclick="myApp.newRom()" >Exit</button>
+                <button class="btn btn-primary mt-2 mb-2" onclick="myApp.zoomOut()" id="btnZoomOut" >Zoom Out</button>
+                <button class="btn btn-primary mt-2 mb-2" onclick="myApp.zoomIn()" id="btnZoomIn" >Zoom In</button>
+                <button class="btn btn-primary mt-2 mb-2" onclick="myApp.fullscreen()">Fullscreen</button>
+                <button class="btn btn-primary mt-2 mb-2" onclick="myApp.saveDrive()" rv-if="data.loggedIn | ev '==false'">Save Drive</button>
+                <div style="display: inline;">
+                    <button type="button" class="btn btn-primary dropdown-toggle" onkeydown="myApp.dropdownKeyDown(event)"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        CPU: { data.cpu }
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" onclick="myApp.updateCPU('auto')" style="cursor: pointer;">Auto</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('1320')" style="cursor: pointer;">1320 - 286, 6 MHz from 1982</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('2750')" style="cursor: pointer;">2750 - 286, 12.5 MHz from 1985</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('4720')" style="cursor: pointer;">4720 - 386, 20 MHz from 1987</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('7800')" style="cursor: pointer;">7800 - 386DX, 33 MHz from 1989</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('10000')" style="cursor: pointer;">10000 - 386DX, 33 MHz from 1990</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('13400')" style="cursor: pointer;">13400 - 486DX, 40 MHz from 1991</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('18000')" style="cursor: pointer;">18000 - 486DX, 45 MHz from 1992</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('22000')" style="cursor: pointer;">22000 - 486DX, 50 MHz from 1993</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('26800')" style="cursor: pointer;">26800 - 486DX2, 60 MHz from 1994</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('30000')" style="cursor: pointer;">30000 - 486DX2, 70 MHz from 1995</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('40000')" style="cursor: pointer;">40000 - 486DX2, 80 MHz from 1996</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('50000')" style="cursor: pointer;">50000 - 486DX2, 90 MHz from 1996</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('77000')" style="cursor: pointer;">77000 - Pentium, 150 MHz from 1997</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('100000')" style="cursor: pointer;">100000 - Pentium, 200 MHz from 1997</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('200000')" style="cursor: pointer;">200000 - Pentium II, 300 MHz from 1998</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('500000')" style="cursor: pointer;">500000 - Pentium III, 600 MHz from 1999</a>
+                        <a class="dropdown-item" onclick="myApp.updateCPU('1000000')" style="cursor: pointer;">1000000 - AMD Athlon, 1.2 GHz from 2000</a>
+                    </div>
+                </div>
+                <div style="display: inline;">
+                    <button type="button" class="btn btn-primary dropdown-toggle" onkeydown="myApp.dropdownKeyDown(event)"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Advanced
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" onclick="myApp.saveHardDriveDiffs()" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Save Cloud Drive</a>
+                        <a class="dropdown-item" onclick="myApp.toggleFPS()" style="cursor: pointer;">Performance Stats</a>
+                        <!-- <a class="dropdown-item" onclick="myApp.saveStateLocal()" rv-if="data.loggedIn | ev '==false'" style="cursor: pointer;">Save State (Experimental)</a>
+                        <a class="dropdown-item" onclick="myApp.loadStateLocal()" rv-if="data.loggedIn | ev '==false'" rv-hide="data.noLocalSave" style="cursor: pointer;">Load State (Experimental)</a>
+                        <a class="dropdown-item" onclick="myApp.saveCloud()" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Save Cloud State (Experimental)</a>
+                        <a class="dropdown-item" onclick="myApp.loadCloud()" rv-if="data.loggedIn | ev '==true'" rv-hide="data.noCloudSave" style="cursor: pointer;">Load Cloud State (Experimental)</a> -->
+                        <a class="dropdown-item" onclick="myApp.cacheIsoAndBaseImage()" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Cache ISO and Base Image</a>
+                        <a class="dropdown-item" onclick="myApp.importModal()" style="cursor: pointer;">Import Files</a>
+                        <a class="dropdown-item" onclick="myApp.importModal('noCopy')" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Import Files Without Copy</a>
+                        <a class="dropdown-item" onclick="myApp.importModal('loadCD')" rv-hide="data.isoMounted" style="cursor: pointer;">Load CD</a>
+                        <a class="dropdown-item" onclick="myApp.importModal('changeCD')" rv-if="data.isoMounted" style="cursor: pointer;">Change CD</a>
+                        <a class="dropdown-item" onclick="myApp.exportModal()" style="cursor: pointer;">Export Files</a>
+                        <a class="dropdown-item" onclick="myApp.exportHardDrive()" style="cursor: pointer;">Export Hard Drive</a>
+                        <a class="dropdown-item" onclick="myApp.toggle16BitColorFix()" style="cursor: pointer;">16 Bit Color Fix</a>
+                        <a class="dropdown-item" onclick="myApp.sendCtrlAltDel()" style="cursor: pointer;">Send Ctrl+Alt+Del</a>
+                        <a class="dropdown-item" onclick="myApp.togglePause()" style="cursor: pointer;">Pause/Unpause</a>
+                        <a class="dropdown-item" onclick="myApp.toggleAutoKeybaord()" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Auto Keyboard Presses</a>
+                        <a class="dropdown-item" onclick="myApp.exitToDos()" style="cursor: pointer;">Exit to DOS</a>
+                    </div>
+                </div>
+            </div>
+
+            
+        </div>
+
+        <div style="display: none;" id="errorOuter">
+            <div rv-if="data.lblError"
+                class="alert alert-danger mt-4" id="lblError" role="alert" 
+                rv-html="data.lblError">
+            </div>
+        </div>
+
+
+            <input id="file-import" type="file" multiple />
+
+    </div>
+
+    <div id="canvasDiv" class="mt-2 mb-4"
+        style="height:480px;text-align: center;margin-left: auto;margin-right: auto;display: none;">
+        <!-- ID has to be canvas it's hardcoded in the EM generated .js -->
+        <canvas id="canvas" style="height: 100%;" ></canvas>
+    </div>
+
+    <div id="divInstructions" class="container text-center" style="display: none;">
+        <div class="alert alert-secondary mt-4" role="alert" rv-if="data.initialInstallation">
+            Remember to always manually shut down Windows before exiting the page.<br> Or click the Save Drive button. That will commit your hard disk changes to the browser.
+        </div>
+    </div>
+    
+    <h6 id="githubDiv" class="card-title mt-4 text-center" style="display: none;">
+        <a href="https://github.com/nbarkhina/doswasmx" target="_blank" style="color: black;">
+            View source on GitHub
+            <img src="github_logo.png" style="height: 25px; padding-bottom: 5px; padding-left: 10px;">
+        </a>
+    </h6>
+
+    <!--  Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" role="dialog" aria-labelledby="settingsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <div class="mt-2">
+                            <table cellpadding="5">
+                                <tbody>
+                                    <tr>
+                                        <td style="width: 100px;">
+                                            Delete HD
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-primary" onclick="myApp.clearHardDrive()">Clear Hard Drive</button>
+                                            <div style="font-size: 8pt;margin-top: 5px;">Note: this will delete your current hard drive from the browser</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>RAM</td>
+                                        <td>
+                                            <div>
+                                                <select class="form-control" rv-value="data.ramTemp" id="ddlRam">
+                                                    <option value="32">32 MB (Default)</option>
+                                                    <option value="64">64 MB</option>
+                                                    <option value="128">128 MB</option>
+                                                </select>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Initial HD</td>
+                                        <td>
+                                            <div>
+                                                <select class="form-control" rv-value="data.initialHardDriveTemp" id="ddlInitialHD">
+                                                    <option value="hd_520">512 MB (Default)</option>
+                                                    <option value="hd_1gig">1 GB</option>
+                                                    <option value="hd_2gig">2 GB</option>
+                                                </select>
+                                                <div style="font-size: 8pt;margin-top: 5px;">This is the initial size of your in-browser hard drive. If you already have a hard drive you will need to delete it first (above) before setting a new size.</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                </div>
+                <div class="modal-footer" style="padding-top: 0;" rv-hide="data.remapWait">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="myApp.settingsSubmit()">Save Changes</button>
+                </div>
+                <div class="modal-footer">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--  Export Modal -->
+    <div class="modal fade" id="exportModal" tabindex="-1" role="dialog" aria-labelledby="exportModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportModalLabel">Confirm</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <b>WARNING</b> It is recommended to shutdown Windows before running this otherwise it will be shut down automatically.
+                    When you are ready, copy all the files you want to export to the folder C:\EXPORT and press Submit.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="myApp.exportFiles()">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--  IMPORT Modal -->
+    <div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-labelledby="importModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importModalLabel">Confirm</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div rv-if="data.loadCD">
+                        Select ISO/CUE/BIN files to load into the CD drive.
+                    </div>
+                    <div rv-if="data.loadCD">
+                        <b>NOTE</b> This will restart your computer 
+                    </div>
+                    <div rv-if="data.changeCD">
+                        Select ISO/CUE/BIN files to swap into the CD drive.
+                    </div>
+                    <div rv-hide="data.loadCD">
+                        <div rv-hide="data.changeCD">
+                            <b>WARNING</b> It is recommended to shutdown Windows before running this otherwise it will be shut down automatically. 
+                            Click browse and select all the files to import when ready. 
+                            <div rv-hide="data.noCopyImport">
+                                After Windows reboots your files will be in C:\IMPORT
+                            </div>
+                            <div rv-if="data.noCopyImport">
+                                Windows will exit to DOS. To access them run "MOUNT E ." followed by "E:"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center;margin-bottom: 20px;">
+                    <button id="btnImport" class="btn btn-primary mt-4" onclick="myApp.importBrowse()">Browse</button>
+                </div>
+                <div rv-if="data.importStatus" class="mb-2 mt-2 text-center">
+                    { data.importStatus }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!--  Login Modal -->
+    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="loginModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="loginModalLabel">Login</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" class="form-control" id="txtPassword" autocomplete="off"
+                            rv-value="data.password" onkeydown="" placeholder="Enter Password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="myApp.loginSubmit()">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="romlist.js"></script>
+    <script type="text/javascript">
+        var rando = Math.floor(Math.random() * Math.floor(100000));
+        var script = document.createElement('script');
+        script.src = 'settings.js?v=' + rando;
+        document.getElementsByTagName('head')[0].appendChild(script);
+    </script>
+</body>
+
+</html>

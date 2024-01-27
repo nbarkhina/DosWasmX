@@ -1,0 +1,395 @@
+#include <SDL_thread.h>
+#include <SDL_timer.h>
+
+#include "logging.h"
+#include "mixer.h"
+#include "control.h"
+#include "cross.h"
+
+#define MT32EMU_API_TYPE 3
+#define MT32EMU_EXPORTS_TYPE 1
+#include <mt32emu.h>
+
+std::string mt32info = "";
+static const Bitu MILLIS_PER_SECOND = 1000;
+
+class RingBuffer {
+private:
+	static const unsigned int bufferSize = 1024;
+	volatile unsigned int startpos;
+	volatile unsigned int endpos;
+    uint64_t ringBuffer[bufferSize] = {};
+
+public:
+	RingBuffer() {
+		startpos = 0;
+		endpos = 0;
+	}
+
+	bool put(uint32_t data) {
+		unsigned int newEndpos = endpos;
+		newEndpos++;
+		if (newEndpos == bufferSize) newEndpos = 0;
+		if (startpos == newEndpos) return false;
+		ringBuffer[endpos] = data;
+		endpos = newEndpos;
+		return true;
+	}
+
+	uint32_t get() {
+		if (startpos == endpos) return 0;
+		uint32_t data = (uint32_t)ringBuffer[startpos]; /* <- FIXME: Um.... really? */
+		startpos++;
+		if (startpos == bufferSize) startpos = 0;
+		return data;
+	}
+	void reset() {
+		startpos = 0;
+		endpos = 0;
+	}
+};
+
+class MidiHandler_mt32 : public MidiHandler {
+private:
+	MixerChannel *chan;
+	MT32Emu::Service *service;
+	SDL_Thread *thread;
+	// SDL_mutex *lock;
+	SDL_cond *framesInBufferChanged;
+	int16_t *audioBuffer;
+	Bitu audioBufferSize;
+	Bitu framesPerAudioBuffer;
+	Bitu minimumRenderFrames;
+	volatile Bitu renderPos, playPos, playedBuffers;
+	volatile bool stopProcessing;
+	bool open, noise, renderInThread;
+
+	static void mixerCallBack(Bitu len) {
+        MidiHandler_mt32::GetInstance().handleMixerCallBack(len);
+    }
+	static int processingThread(void *) {
+        MidiHandler_mt32::GetInstance().renderingLoop();
+        return 0;
+    }
+	bool load_rom_set(std::string romDir, int model) {
+		if (romDir.back() != '/' && romDir.back() != '\\') {
+			romDir.append("/");
+		}
+		char pathName[4096];
+		std::string roms = "";
+		strcpy(pathName, romDir.c_str());
+		strcat(pathName, "CM32L_CONTROL.ROM");
+		if (model==2 || MT32EMU_RC_ADDED_CONTROL_ROM != service->addROMFile(pathName)) {
+			strcpy(pathName, romDir.c_str());
+			strcat(pathName, "MT32_CONTROL.ROM");
+			if (model==1 || MT32EMU_RC_ADDED_CONTROL_ROM != service->addROMFile(pathName)) {
+				return false;
+			} else {
+				roms = "MT32_CONTROL.ROM and ";
+			}
+		} else {
+			roms = "CM32L_CONTROL.ROM and ";
+		}
+		strcpy(pathName, romDir.c_str());
+		strcat(pathName, "CM32L_PCM.ROM");
+		if (model==2 || MT32EMU_RC_ADDED_PCM_ROM != service->addROMFile(pathName)) {
+			strcpy(pathName, romDir.c_str());
+			strcat(pathName, "MT32_PCM.ROM");
+			if (model==1 || MT32EMU_RC_ADDED_PCM_ROM != service->addROMFile(pathName)) {
+				return false;
+			} else {
+				roms += "MT32_PCM.ROM";
+			}
+		} else {
+			roms += "CM32L_PCM.ROM";
+		}
+		mt32info="ROM directory: "+romDir+"\n  ROM pair: "+roms;
+		LOG_MSG("MT32: Found ROM pair in %s: %s", romDir.c_str(), roms.c_str());
+		return true;
+	}
+	static mt32emu_report_handler_i getReportHandlerInterface() {
+        class ReportHandler {
+        public:
+            static mt32emu_report_handler_version getReportHandlerVersionID(mt32emu_report_handler_i) {
+                return MT32EMU_REPORT_HANDLER_VERSION_0;
+            }
+
+            static void printDebug(void *instance_data, const char *fmt, va_list list) {
+                MidiHandler_mt32 &midiHandler_mt32 = *(MidiHandler_mt32 *)instance_data;
+                if (midiHandler_mt32.noise) {
+                    char s[1024];
+                    vsnprintf(s, 1023, fmt, list);
+                    LOG_MSG("MT32: %s", s);
+                }
+            }
+
+            static void onErrorControlROM(void *) {
+                LOG_MSG("MT32: Couldn't open Control ROM file");
+            }
+
+            static void onErrorPCMROM(void *) {
+                LOG_MSG("MT32: Couldn't open PCM ROM file");
+            }
+
+            static void showLCDMessage(void *, const char *message) {
+                LOG_MSG("MT32: LCD-Message: %s", message);
+            }
+        };
+
+        static const mt32emu_report_handler_i_v0 REPORT_HANDLER_V0_IMPL = {
+            ReportHandler::getReportHandlerVersionID,
+            ReportHandler::printDebug,
+            ReportHandler::onErrorControlROM,
+            ReportHandler::onErrorPCMROM,
+            ReportHandler::showLCDMessage
+        };
+
+        static const mt32emu_report_handler_i REPORT_HANDLER_I = { &REPORT_HANDLER_V0_IMPL };
+
+        return REPORT_HANDLER_I;
+    }
+	void handleMixerCallBack(Bitu len) {
+        if (renderInThread) {
+            while (renderPos == playPos) {
+                SDL_LockMutex(lock);
+                SDL_CondWait(framesInBufferChanged, lock);
+                SDL_UnlockMutex(lock);
+                if (stopProcessing) return;
+            }
+            Bitu renderPosSnap = renderPos;
+            Bitu playPosSnap = playPos;
+            Bitu samplesReady = (renderPosSnap < playPosSnap) ? audioBufferSize - playPosSnap : renderPosSnap - playPosSnap;
+            if (len > (samplesReady >> 1)) {
+                len = samplesReady >> 1;
+            }
+            chan->AddSamples_s16(len, audioBuffer + playPosSnap);
+            playPosSnap += (len << 1);
+            while (audioBufferSize <= playPosSnap) {
+                playPosSnap -= audioBufferSize;
+                playedBuffers++;
+            }
+            playPos = playPosSnap;
+            renderPosSnap = renderPos;
+            const Bitu samplesFree = (renderPosSnap < playPosSnap) ? playPosSnap - renderPosSnap : audioBufferSize + playPosSnap - renderPosSnap;
+            if (minimumRenderFrames <= (samplesFree >> 1)) {
+                SDL_LockMutex(lock);
+                SDL_CondSignal(framesInBufferChanged);
+                SDL_UnlockMutex(lock);
+            }
+        } else {
+            service->renderBit16s((int16_t *)MixTemp, (MT32Emu::uint32_t)len);
+            chan->AddSamples_s16(len, (int16_t *)MixTemp);
+        }
+    }
+	void renderingLoop() {
+        while (!stopProcessing) {
+            const Bitu renderPosSnap = renderPos;
+            const Bitu playPosSnap = playPos;
+            Bitu samplesToRender;
+            if (renderPosSnap < playPosSnap) {
+                samplesToRender = playPosSnap - renderPosSnap - 2;
+            } else {
+                samplesToRender = audioBufferSize - renderPosSnap;
+                if (playPosSnap == 0) samplesToRender -= 2;
+            }
+            Bitu framesToRender = samplesToRender >> 1;
+            if ((framesToRender == 0) || ((framesToRender < minimumRenderFrames) && (renderPosSnap < playPosSnap))) {
+                SDL_LockMutex(lock);
+                SDL_CondWait(framesInBufferChanged, lock);
+                SDL_UnlockMutex(lock);
+            } else {
+                service->renderBit16s(audioBuffer + renderPosSnap, (MT32Emu::uint32_t)framesToRender);
+                renderPos = (renderPosSnap + samplesToRender) % audioBufferSize;
+                if (renderPosSnap == playPos) {
+                    SDL_LockMutex(lock);
+                    SDL_CondSignal(framesInBufferChanged);
+                    SDL_UnlockMutex(lock);
+                }
+            }
+        }
+    }
+	uint32_t inline getMidiEventTimestamp() {
+		return service->convertOutputToSynthTimestamp(uint32_t(playedBuffers * framesPerAudioBuffer + (playPos >> 1)));
+	}
+
+public:
+    MidiHandler_mt32() : chan(NULL), service(NULL), thread(NULL), open(false) {
+    }
+
+	~MidiHandler_mt32() {
+		MidiHandler_mt32::Close();
+	}
+
+    static MidiHandler_mt32 & GetInstance() {
+        static MidiHandler_mt32 midiHandler_mt32;
+        return midiHandler_mt32;
+    }
+
+	const char *GetName(void) {
+		return "mt32";
+	}
+
+    bool Open(const char *conf) {
+        (void)conf;//UNUSED
+        service = new MT32Emu::Service();
+        uint32_t version = service->getLibraryVersionInt();
+        if (version < 0x020100) {
+            delete service;
+            service = NULL;
+            LOG_MSG("MT32: libmt32emu version is too old: %s", service->getLibraryVersionString());
+            return false;
+        }
+        service->createContext(getReportHandlerInterface(), this);
+        mt32emu_return_code rc;
+
+        Section_prop *section = static_cast<Section_prop *>(control->GetSection("midi"));
+        std::string romDir = section->Get_string("mt32.romdir");
+        std::string modelstr = section->Get_string("mt32.model");
+        int model = modelstr=="cm32l"?1:(modelstr=="mt32"?2:0);
+
+        void ResolvePath(std::string& in);
+		ResolvePath(romDir);
+        if (romDir.size() < 1) {
+            romDir = "./";
+        } else if (4080 < romDir.size()) {
+            LOG_MSG("MT32: mt32.romdir is too long, trying to find ROMs.");
+            romDir = "./";
+        }
+
+		if (!load_rom_set(romDir, model)) {
+			Cross::GetPlatformResDir(romDir);
+			if (!load_rom_set(romDir, model)) {
+					Cross::GetPlatformConfigDir(romDir);
+					if (!load_rom_set(romDir, model)) {
+							delete service;
+							service = NULL;
+							LOG_MSG("MT32: failed to locate ROMs.");
+							LOG_MSG("MT32 emulation requires the PCM and CONTROL ROM files.");
+							LOG_MSG("To eliminate this error message, check the DOSBox-X wiki.");
+							LOG_MSG("The ROM files are: CM32L_CONTROL.ROM and CM32L_PCM.ROM or MT32_CONTROL.ROM and MT32_PCM.ROM");
+							return false;
+					}
+			}
+		}
+        sffile=romDir;
+
+        service->setPartialCount(uint32_t(section->Get_int("mt32.partials")));
+        service->setAnalogOutputMode((MT32Emu::AnalogOutputMode)section->Get_int("mt32.analog"));
+        int sampleRate = section->Get_int("mt32.rate");
+        service->setStereoOutputSampleRate(sampleRate);
+        service->setSamplerateConversionQuality((MT32Emu::SamplerateConversionQuality)section->Get_int("mt32.src.quality"));
+        const uint32_t mt32_samplerate = 32000U;
+        const uint32_t mt32_sampleratemodes[] = { mt32_samplerate, mt32_samplerate, mt32_samplerate / 2 * 3, mt32_samplerate * 3,0 };
+        if(sampleRate != mt32_sampleratemodes[section->Get_int("mt32.analog")]) LOG_MSG("MIDI: Warning sampling rates of \"mt32.rate\" and \"mt32.analog\" settings are different. May result in incorrect pitch.");
+
+        if (MT32EMU_RC_OK != (rc = service->openSynth())) {
+            delete service;
+            service = NULL;
+            LOG_MSG("MT32: Error initialising emulation: %i", rc);
+            return false;
+        }
+
+        if (strcmp(section->Get_string("mt32.reverb.mode"), "auto") != 0) {
+            uint8_t reverbsysex[] = {0x10, 0x00, 0x01, 0x00, 0x05, 0x03};
+            reverbsysex[3] = (uint8_t)atoi(section->Get_string("mt32.reverb.mode"));
+            reverbsysex[4] = (uint8_t)section->Get_int("mt32.reverb.time");
+            reverbsysex[5] = (uint8_t)section->Get_int("mt32.reverb.level");
+            service->writeSysex(16, reverbsysex, 6);
+            service->setReverbOverridden(true);
+        }
+
+        service->setOutputGain(0.01f * section->Get_int("mt32.output.gain"));
+        service->setReverbOutputGain(0.01f * section->Get_int("mt32.reverb.output.gain"));
+        service->setDACInputMode((MT32Emu::DACInputMode)section->Get_int("mt32.dac"));
+
+        service->setReversedStereoEnabled(section->Get_bool("mt32.reverse.stereo"));
+        service->setNiceAmpRampEnabled(section->Get_bool("mt32.niceampramp"));
+        if(section->Get_bool("mt32.engage.channel1")) {
+           uint8_t channelAssignmentSysex[] = { 0x10, 0x00, 0x0d, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x09 };
+            service->writeSysex(16, channelAssignmentSysex, sizeof channelAssignmentSysex);
+        }
+        noise = section->Get_bool("mt32.verbose");
+        renderInThread = section->Get_bool("mt32.thread");
+
+        if (noise) LOG_MSG("MT32: Set maximum number of partials %d", service->getPartialCount());
+
+        if (noise) LOG_MSG("MT32: Adding mixer channel at sample rate %d", sampleRate);
+        chan = MIXER_AddChannel(mixerCallBack, sampleRate, "MT32");
+
+        if (renderInThread) {
+            stopProcessing = false;
+            playPos = 0;
+            int chunkSize = section->Get_int("mt32.chunk");
+            minimumRenderFrames = (chunkSize * sampleRate) / MILLIS_PER_SECOND;
+            int latency = section->Get_int("mt32.prebuffer");
+            if (latency <= chunkSize) {
+                latency = 2 * chunkSize;
+                LOG_MSG("MT32: chunk length must be less than prebuffer length, prebuffer length reset to %i ms.", latency);
+            }
+            framesPerAudioBuffer = (latency * sampleRate) / MILLIS_PER_SECOND;
+            audioBufferSize = framesPerAudioBuffer << 1;
+            audioBuffer = new int16_t[audioBufferSize];
+            service->renderBit16s(audioBuffer, (MT32Emu::uint32_t)(framesPerAudioBuffer - 1));
+            renderPos = (framesPerAudioBuffer - 1) << 1;
+            playedBuffers = 1;
+            lock = SDL_CreateMutex();
+            framesInBufferChanged = SDL_CreateCond();
+#if defined(C_SDL2)
+			thread = SDL_CreateThread(processingThread, "MT32", NULL);
+#else
+			thread = SDL_CreateThread(processingThread, NULL);
+#endif
+        }
+        chan->Enable(true);
+
+        open = true;
+        return true;
+	}
+
+	void Close(void) {
+        if (!open) return;
+        chan->Enable(false);
+        if (renderInThread) {
+            stopProcessing = true;
+            SDL_LockMutex(lock);
+            SDL_CondSignal(framesInBufferChanged);
+            SDL_UnlockMutex(lock);
+            SDL_WaitThread(thread, NULL);
+            thread = NULL;
+            SDL_DestroyMutex(lock);
+            lock = NULL;
+            SDL_DestroyCond(framesInBufferChanged);
+            framesInBufferChanged = NULL;
+            delete[] audioBuffer;
+            audioBuffer = NULL;
+        }
+        MIXER_DelChannel(chan);
+        chan = NULL;
+        service->closeSynth();
+        delete service;
+        service = NULL;
+        open = false;
+	}
+
+	void PlayMsg(uint8_t *msg) {
+        if (renderInThread) {
+            service->playMsgAt(SDL_SwapLE32(*(uint32_t *)msg), getMidiEventTimestamp());
+        } else {
+            service->playMsg(SDL_SwapLE32(*(uint32_t *)msg));
+        }
+	}
+
+	void PlaySysex(uint8_t *sysex, Bitu len) {
+        if (renderInThread) {
+            service->playSysexAt(sysex, (MT32Emu::uint32_t)len, getMidiEventTimestamp());
+        } else {
+            service->playSysex(sysex, (MT32Emu::uint32_t)len);
+        }
+	}
+
+	void ListAll(Program* base) {
+		base->WriteOut("  %s\n",mt32info.c_str());
+	}
+};
+
+static MidiHandler_mt32 &Midi_mt32 = MidiHandler_mt32::GetInstance();
