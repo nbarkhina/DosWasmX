@@ -71,4 +71,4 @@ TBD
 - Emscripten https://github.com/emscripten-core/emscripten
 
 # Disclaimer
-This app was made for fun and is not is not affiliated or associated with Microsoft.
+This app was made for fun and is not affiliated or associated with Microsoft.
