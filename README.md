@@ -16,7 +16,8 @@ You will need a Linux environment to build DOS Wasm X
 - ./emsdk activate 3.1.49
 - source ./emsdk_env.sh
 - replace Binaryen with special version
-  - copy the file wasm-opt from this repo `code/wasm-opt` to the emscripten folder here `emsdk/upstream/bin/wasm-opt`
+  - replace the file wasm-opt in `emsdk/upstream/bin/wasm-opt` with the one from this repo `code/wasm-opt`
+  - navigate to the `emsdk/upstream/bin/` folder and run `chmod +x wasm-opt`
   - this is needed because default Binaryen does not support Exceptions and Asyncify together
   - huge credit goes to @Caiiiycuk for developing this! 
   - see references below if you prefer to get wasm-opt directly from his releases page
