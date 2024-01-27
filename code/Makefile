@@ -257,6 +257,8 @@ MYFLAGSC := \
 	-fwasm-exceptions
 
 all: main.js
+	mv main.js ../dist/main.js
+	mv main.wasm ../dist/main.wasm
 
 main.js: $(FILES)
 	emcc -o $@ $(FILES) \

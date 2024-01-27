@@ -27,11 +27,10 @@ You will need a Linux environment to build DOS Wasm X
   - to get past this error simply copy the faulting emcc command from the terminal and run it manually (See screenshot below)
   - this should succeed and then run `make` again to finish building
   - later builds should not get this error after you do this one time fix
-- then copy these 2 files from the code\ folder into the dist\ folder
-  - main.js
-  - main.wasm
+- this process will update the main.js and main.wasm files in your dist folder
+- now serve the dist folder from a webserver and Enjoy!
 
-The emscripten instructions above are a one time setup however you will need to always run `source ./emsdk_env.sh` every time you close the terminal. This is because the emscripten compiler does not get saved to the PATH
+The emscripten installation above is a one time setup however you will need to always run `source ./emsdk_env.sh` from the emscripten folder every time you close the terminal and before running `make`. This is because the emscripten compiler does not get saved to the PATH
 
 ![builderror](screenshots/builderror2.PNG)
 
