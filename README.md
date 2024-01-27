@@ -55,7 +55,7 @@ var DOSWASMSETTINGS = {
 ```
 
 # Installing Windows
-TBD
+DOS Wasm X supports installing Windows 95 or Windows 98 using your own copy of Windows. Simply drag and drop the ISO onto the startup page. DOS Wasm X will detect the Windows CD and begin the installation process. If you choose to Install Windows 95 you may get the error below. Simply click OK and then cancel when it asks you for the Path to the CD. This will allow you to continue with the installation. The reason for this error is because at this stage of the process the CD drivers have not yet been loaded. However after restarting Windows it will detect the CD Drive and finish installing the drivers successfuly. 
 
 ![screenshot](screenshots/win95error.PNG)
 
@@ -69,3 +69,6 @@ TBD
 - DOSBox-X https://github.com/joncampbell123/dosbox-x
 - Binaryen with Exceptions and Asyncify https://github.com/caiiiycuk/binaryen-fwasm-exceptions
 - Emscripten https://github.com/emscripten-core/emscripten
+
+# Disclaimer
+This app was made for fun and is not is not affiliated or associated with Microsoft.
