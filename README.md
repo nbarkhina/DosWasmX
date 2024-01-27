@@ -36,16 +36,20 @@ The emscripten instructions above are a one time setup however you will need to 
 ![builderror](screenshots/builderror2.PNG)
 
 # Hosting
-TBD
+You can host the app on your own web server. Copy everything in the `dist\` folder to your web server.
 
-Copy everything in the `dist\` folder to your web server to host the app yourself
+Also you can optionally configure a Default Hard Drive to load when users navigate to your application. After Saving/Configuring a Hard Drive locally you can export it from the advanced menu.
+
+![exportdrive](screenshots/exportdrive.PNG)
+
+Then update the settings.js file with the path to your img file
 
 ```javascript
 
 var DOSWASMSETTINGS = {
     CLOUDSAVEURL: "",
     ISOURL: "",
-    DEFAULTIMG: ""
+    DEFAULTIMG: "https://www.yourwebsite.com/hdd.img"
 }
 
 ```
