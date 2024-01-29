@@ -1,8 +1,25 @@
 # DOS Wasm X
-intro
+This is a browser based DOS emulator designed around ease of use and stability. It is based on the DosBox-X codebase and supports both Windows 95 and Windows 98 installations. However if you just want to use DOS applications and games you can stay in DOS mode. To begin using it simply drag and drop any application or game files onto the emulator. You can then save your hard disk with the click of a button or just exit if you want to discard your changes. The hard disk saves directly in your browser so you can come back later and continue where you left off. It's like your own personal virtual machine on the web!
 
 Supports the following features -
-- TBD
+- Fully web based application - using web assembly
+- Save hard drive to the browser (512mb, 1 gig, or 2 gig options)
+- Automatic support for a variety of file formats (Iso, Zip, Bin, Cue, Img).
+- Customize RAM (32mb, 64mb, 128mb)
+- Import/export files into and out of the emulator
+- Export your entire hard disk image for local saving
+- Load/change CD while emulator is running
+- Audio support
+- Full screen
+- Zoom controls
+- Mouse capture
+- Resize resolution
+- 16 and 32 bit color (via 16 bit color fix)
+- Customize CPU speed
+- Host the application yourself
+- Customize startup hard drive image
+- Send CTRL/ALT/DELETE
+- Pause/Unpause
 
 You can try it here: https://www.neilb.net/doswasmx/
 
@@ -53,16 +70,41 @@ var DOSWASMSETTINGS = {
 
 ```
 
+# Screenshots
+
+![screenshot](screenshots/screenshot2.png)
+
+
+![screenshot](screenshots/screenshot3.png)
+
+
+![screenshot](screenshots/screenshot4.png)
+
+
+![screenshot](screenshots/screenshot5.png)
+
+
+![screenshot](screenshots/screenshot6.png)
+
+
+![screenshot](screenshots/screenshot7.png)
+
+
+![screenshot](screenshots/screenshot8.png)
+
 # Installing Windows
 DOS Wasm X supports installing Windows 95 or Windows 98 using your own copy of Windows. Simply drag and drop the ISO onto the startup page. DOS Wasm X will detect the Windows CD and begin the installation process. If you choose to Install Windows 95 you may get the error below. Simply click OK and then cancel when it asks you for the Path to the CD. This will allow you to continue with the installation. The reason for this error is because at this stage of the process the CD drivers have not yet been loaded. However after restarting Windows it will detect the CD Drive and finish installing the drivers successfuly. 
 
 ![screenshot](screenshots/win95error.PNG)
 
 # Common DOS Commands
-TBD
+- DIR - Display list of files and directories
+- CD - Change the current directory
+- XCOPY - Copy Files
+- DEL - Delete one or more files
+- MKDIR - Create a directory
 
-# Screenshots
-TBD
+You can also type HELP at the command line to get a list of commands.
 
 # References
 - DOSBox-X https://github.com/joncampbell123/dosbox-x
