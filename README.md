@@ -1,10 +1,10 @@
 # DOS Wasm X
-This is a browser based DOS emulator designed around ease of use and stability. It is based on the DosBox-X codebase and supports both Windows 95 and Windows 98 installations. However if you just want to use DOS applications and games you can stay in DOS mode. To begin using it simply drag and drop any application or game files onto the emulator. You can then save your hard disk with the click of a button or just exit if you want to discard your changes. The hard disk saves directly in your browser so you can come back later and continue where you left off. It's like your own personal virtual machine on the web!
+This is a browser based DOS emulator designed around ease of use and stability. It is based on the newer DosBox-X codebase and thus supports both Windows 95 and Windows 98 installations. However if you just want to use DOS applications and games you can stay in DOS mode. To begin using it simply drag and drop any application or game files onto the emulator. You can then save your hard disk with the click of a button or just exit if you want to discard your changes. The hard disk saves directly in your browser so you can come back later and continue where you left off. It's like your own personal virtual machine on the web!
 
 Supports the following features -
 - Fully web based application - using web assembly
 - Save hard drive to the browser (512mb, 1 gig, or 2 gig options)
-- Automatic support for a variety of file formats (Iso, Zip, Bin, Cue, Img).
+- Automatic support for a variety of file formats (Iso, Zip, Bin, Cue, Img)
 - Customize RAM (32mb, 64mb, 128mb)
 - Import/export files into and out of the emulator
 - Export your entire hard disk image for local saving
@@ -20,6 +20,7 @@ Supports the following features -
 - Customize startup hard drive image
 - Send CTRL/ALT/DELETE
 - Pause/Unpause
+- Import existing IMG hard disk if you already have one
 
 You can try it here: https://www.neilb.net/doswasmx/
 

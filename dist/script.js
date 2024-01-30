@@ -10,6 +10,7 @@ const SaveTypes = {
 class MyClass {
     constructor() {
         this.rom_name = '';
+        this.rom_size = 0;
         this.base_name = '';
         this.initCount = 0;
         this.baseImageSaved = false;
@@ -38,7 +39,8 @@ class MyClass {
         this.multiFileMode = false;
         this.singleFileUpload = false;
         this.noLocalSave = true;
-        this.message = 'Loading...';
+        this.message = '';
+        this.loading = true;
         this.isoName = '';
         this.loginModalOpened = false;
         this.noCloudSave = true;
@@ -129,7 +131,6 @@ class MyClass {
 
         $('#topPanel').show();
         $('#errorOuter').show();
-        $('#divInstructions').show();
         
     }
 
@@ -229,6 +230,7 @@ class MyClass {
         }
 
         $('#canvasDiv').show();
+        $('#divInstructions').show();
 
     }
 
@@ -396,6 +398,7 @@ class MyClass {
             FS.mkdir('/save');
 
             $('#githubDiv').show();
+            this.loading = false;
 
         }        
     }
@@ -573,6 +576,11 @@ class MyClass {
     async LoadEmulator(byteArray){
 
 
+        if (byteArray && byteArray.length)
+        {
+            this.rom_size = byteArray.length;
+        }
+
         if (this.iso_loaded == false)
         {
             if (!this.noIso)
@@ -588,7 +596,9 @@ class MyClass {
                     if (this.singleFileUpload)
                         FS.writeFile('/uploaded/' + myClass.rom_name,byteArray);
                     else
+                    {
                         FS.writeFile(myClass.rom_name,byteArray);
+                    }
                 }
             }
 

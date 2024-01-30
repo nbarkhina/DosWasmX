@@ -7,6 +7,7 @@
     <meta name="keywords" content="DOS Emulator, DOS JavaScript Emulator, WebAssembly, HTML5">
     <meta charset="UTF-8">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/rivets/0.9.6/rivets.bundled.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
@@ -51,6 +52,11 @@
                     <div rv-html="data.message">
                     </div>
                 </div>
+                <div class="mt-2 mb-2" rv-if="data.loading">
+                    <i class="fa fa-refresh fa-spin" style="font-size:14px;margin-right:0.5em;"></i>
+                    Loading...
+                </div>
+                
                 
                 <div class="progress mt-4" id="progressOuter" rv-if="data.showProgress">
                     <div class="progress-bar bg-info" role="progressbar" id="myProgress">1%</div>
@@ -117,8 +123,8 @@
                     <div rv-hide="data.moduleInitializing" style="width: 70%; margin-left: auto; margin-right: auto;">
                         <div rv-hide="data.loggedIn | ev '==true'">
                             <div class="alert alert-info mt-4" role="alert" rv-if="data.dblistDisks | ev_string '.length == 0'">
-                                To set up your hard disk start by dragging a Windows 95/98 ISO<br> onto the page and proceed with the installation.
-                                <br> Or you can stay in DOS Mode if you prefer!
+                                Start by dragging any DOS based application/game files onto the page. <br>
+                                If you want to run Windows simply drag a Windows 95/98 ISO and proceed with the installation.
                             </div>
                         </div>
                     </div>
@@ -218,7 +224,8 @@
 
     <div id="divInstructions" class="container text-center" style="display: none;">
         <div class="alert alert-secondary mt-4" role="alert" rv-if="data.initialInstallation">
-            Remember to always manually shut down Windows before exiting the page.<br> Or click the Save Drive button. That will commit your hard disk changes to the browser.
+            Remember to always click the Save Drive button before exiting the page. That will commit your hard disk changes to the browser.<br>
+            If you installed Windows then remember to shut down the OS before exiting the page.
         </div>
     </div>
     
