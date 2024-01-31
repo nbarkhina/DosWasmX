@@ -248,6 +248,11 @@ class MyClass {
                     myClass.initialInstallation = true;
                     myClass.sendDosCommands("d:setup.exe\n");
                 }, 50);
+
+                //set cpu to max during windows installation
+                setTimeout(() => {
+                    myClass.updateCpuNeil('cycles=max');
+                }, 100);
             }
         }
 
@@ -2336,6 +2341,10 @@ class MyClass {
     updateCPU(value){
         this.cpu = value;
         if (value == 'auto')
+        {
+            this.updateCpuNeil('cycles=auto');
+        }
+        else if (value == 'max')
         {
             this.updateCpuNeil('cycles=max');
         }

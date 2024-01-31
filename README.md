@@ -1,5 +1,5 @@
 # DOS Wasm X
-This is a browser based DOS emulator designed around ease of use and stability. It is based on the newer DosBox-X codebase and thus supports both Windows 95 and Windows 98 installations. However if you just want to use DOS applications and games you can stay in DOS mode. To begin using it simply drag and drop any application or game files onto the emulator. You can then save your hard disk with the click of a button or just exit if you want to discard your changes. The hard disk saves directly in your browser so you can come back later and continue where you left off. It's like your own personal virtual machine on the web!
+This is a browser based DOS emulator designed around ease of use and stability. It is based on the newer DosBox-X codebase and thus supports both Windows 95 and Windows 98 installations. However if you just want to use DOS applications and games you can stay in DOS mode. To begin using it simply drag and drop any application or game files onto the emulator. You can then save your hard disk with the click of a button or just exit if you want to discard your changes. I went with a simple and clean interface to try and make it approachable and non-intimidating. The hard disk saves directly in your browser so you can come back later and continue where you left off. It's like your own personal virtual machine on the web!
 
 Supports the following features -
 - Fully web based application - using web assembly
@@ -41,7 +41,7 @@ You will need a Linux environment to build DOS Wasm X
   - see references below if you prefer to get wasm-opt directly from his releases page
 - navigate back to the code folder in the DosWasmX repo
 - run `make`
-- you will get a build error towards the end saying EM_CACHE_IS_LOCKED
+  - you will get a build error towards the end saying EM_CACHE_IS_LOCKED
   - to get past this error simply copy the faulting emcc command from the terminal and run it manually (See screenshot below)
   - this should succeed and then run `make` again to finish building
   - later builds should not get this error after you do this one time fix
@@ -94,7 +94,7 @@ var DOSWASMSETTINGS = {
 ![screenshot](screenshots/screenshot8.png)
 
 # Installing Windows
-DOS Wasm X supports installing Windows 95 or Windows 98 using your own copy of Windows. Simply drag and drop the ISO onto the startup page. DOS Wasm X will detect the Windows CD and begin the installation process. If you choose to Install Windows 95 you may get the error below. Simply click OK and then cancel when it asks you for the Path to the CD. This will allow you to continue with the installation. The reason for this error is because at this stage of the process the CD drivers have not yet been loaded. However after restarting Windows it will detect the CD Drive and finish installing the drivers successfuly. 
+DOS Wasm X supports installing Windows 95 or Windows 98 using your own copy of Windows. Simply drag and drop the ISO onto the startup page. DOS Wasm X will detect the Windows CD and begin the installation process. If you choose to Install Windows 95 you may get the error below. Simply click OK and then cancel when it asks you for the Path to the CD. This will allow you to continue with the installation. The reason for this error is because at this stage of the process the CD drivers have not yet been loaded. However after restarting Windows it will detect the CD Drive and finish installing the drivers successfuly. Always remember to shut down windows in the guest OS before exiting the page. This will automatically save your hard drive changes to the browser and prevent scandisk from running the next time you boot into Windows.
 
 ![screenshot](screenshots/win95error.PNG)
 
