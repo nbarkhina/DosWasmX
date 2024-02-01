@@ -57,8 +57,6 @@ You can host the app on your own web server. Copy everything in the `dist\` fold
 
 Also you can optionally configure a Default Hard Drive to load when users navigate to your application. After Saving/Configuring a Hard Drive locally you can export it from the advanced menu.
 
-Once it has started, you can open your browser to [http://localhost](http://localhost).
-
 ![exportdrive](screenshots/exportdrive.PNG)
 
 Then update the settings.js file with the path to your img file
@@ -80,6 +78,8 @@ If you wish to run directly in a container, you can use the following command af
 ```bash
 docker run -d -p 80:80 omarstewey/neilsdoswasmx
 ```
+
+Once it has started, you can open your browser to [http://localhost](http://localhost).
 
 # Screenshots
 
