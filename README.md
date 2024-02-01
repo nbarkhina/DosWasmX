@@ -57,14 +57,6 @@ You can host the app on your own web server. Copy everything in the `dist\` fold
 
 Also you can optionally configure a Default Hard Drive to load when users navigate to your application. After Saving/Configuring a Hard Drive locally you can export it from the advanced menu.
 
-## Docker
-
-If you wish to run the tutorial, you can use the following command after installing Docker Desktop:
-
-```bash
-docker run -d -p 80:80 omarstewey/neilsdoswasmx
-```
-
 Once it has started, you can open your browser to [http://localhost](http://localhost).
 
 ![exportdrive](screenshots/exportdrive.PNG)
@@ -79,6 +71,14 @@ var DOSWASMSETTINGS = {
     DEFAULTIMG: "https://www.yourwebsite.com/hdd.img"
 }
 
+```
+
+## Docker
+
+If you wish to run directly in a container, you can use the following command after installing Docker Desktop:
+
+```bash
+docker run -d -p 80:80 omarstewey/neilsdoswasmx
 ```
 
 # Screenshots
