@@ -119,6 +119,7 @@ class MyClass {
         rivets.bind(document.getElementById('settingsModal'), { data: this });
         rivets.bind(document.getElementById('divInstructions'), { data: this });
         
+        this.detectBrowser();
         this.setupDragDropRom();
         this.createDB();
         this.retrieveSettings();
@@ -132,6 +133,15 @@ class MyClass {
         $('#topPanel').show();
         $('#errorOuter').show();
         
+    }
+
+    detectBrowser() {
+
+        // mac only supports 250 megs??
+        if (navigator.userAgent.toLocaleLowerCase().includes('macintosh'))
+        {
+            this.initialHardDrive = 'hd_250';
+        }
     }
 
     //DRAG AND DROP ROM
@@ -1331,6 +1341,7 @@ class MyClass {
                 }
             };
             addRequest.onerror = function (event) {
+                toastr.error('Error Saving Data');
                 console.log('error adding data');
                 console.log(event);
             };

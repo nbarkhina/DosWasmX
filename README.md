@@ -76,7 +76,7 @@ var DOSWASMSETTINGS = {
 If you wish to run directly in a container, you can use the following command after installing Docker Desktop:
 
 ```bash
-docker run -d -p 80:80 omarstewey/neilsdoswasmx
+docker run -d -p 80:80 nbarkhina/doswasmx
 ```
 
 Once it has started, you can open your browser to [http://localhost](http://localhost).
