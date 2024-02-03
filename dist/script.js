@@ -11,6 +11,8 @@ class MyClass {
     constructor() {
         this.rom_name = '';
         this.rom_size = 0;
+        this.mobileMode = false;
+        this.iosMode = false;
         this.base_name = '';
         this.initCount = 0;
         this.baseImageSaved = false;
@@ -135,12 +137,37 @@ class MyClass {
         
     }
 
-    detectBrowser() {
+    detectBrowser(){
+        if (navigator.userAgent.toLocaleLowerCase().includes('iphone'))
+        {
+            this.iosMode = true;
+            try {
+                let iosVersion = navigator.userAgent.substring(navigator.userAgent.indexOf("iPhone OS ") + 10);
+                iosVersion = iosVersion.substring(0, iosVersion.indexOf(' '));
+                iosVersion = iosVersion.substring(0, iosVersion.indexOf('_'));
+                this.iosVersion = parseInt(iosVersion);
+            } catch (err) { }
+        }
+        if (window.innerWidth < 600 || this.iosMode)
+            this.mobileMode = true;
+        else
+            this.mobileMode = false;
 
         // mac only supports 250 megs??
         if (navigator.userAgent.toLocaleLowerCase().includes('macintosh'))
         {
             this.initialHardDrive = 'hd_250';
+        }
+
+        if (this.iosMode)
+        {
+            this.initialHardDrive = 'hd -size 64';
+        }
+
+        if (this.mobileMode)
+        {
+            this.canvasHeight = window.innerWidth / 2;
+            console.log('detected mobile mode - canvasheight: ' + this.canvasHeight)
         }
     }
 
@@ -236,8 +263,9 @@ class MyClass {
             console.log('size found');
             let sizeNum = parseInt(size);
             this.canvasHeight = sizeNum;
-            this.resizeCanvas();
         }
+
+        this.resizeCanvas();
 
         $('#canvasDiv').show();
         $('#divInstructions').show();
@@ -1165,7 +1193,7 @@ class MyClass {
     }
 
     resizeCanvas(){
-        document.getElementById('canvasDiv').style.height = + this.canvasHeight + 'px';
+        document.getElementById('canvasDiv').style.height = this.canvasHeight + 'px';
     }
 
     saveDrive()
