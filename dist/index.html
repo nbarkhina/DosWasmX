@@ -189,9 +189,9 @@
                         <a class="dropdown-item" onclick="myApp.cacheIsoAndBaseImage()" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Cache ISO and Base Image</a>
                         <a class="dropdown-item" onclick="myApp.importModal()" style="cursor: pointer;">Import Files</a>
                         <a class="dropdown-item" onclick="myApp.importModal('noCopy')" rv-if="data.loggedIn | ev '==true'" style="cursor: pointer;">Import Files Without Copy</a>
+                        <a class="dropdown-item" onclick="myApp.exportModal()" style="cursor: pointer;">Export Files</a>
                         <a class="dropdown-item" onclick="myApp.importModal('loadCD')" rv-hide="data.isoMounted" style="cursor: pointer;">Load CD</a>
                         <a class="dropdown-item" onclick="myApp.importModal('changeCD')" rv-if="data.isoMounted" style="cursor: pointer;">Change CD</a>
-                        <a class="dropdown-item" onclick="myApp.exportModal()" style="cursor: pointer;">Export Files</a>
                         <a class="dropdown-item" onclick="myApp.exportHardDrive()" style="cursor: pointer;">Export Hard Drive</a>
                         <a class="dropdown-item" onclick="myApp.toggle16BitColorFix()" style="cursor: pointer;">16 Bit Color Fix</a>
                         <a class="dropdown-item" onclick="myApp.sendCtrlAltDel()" style="cursor: pointer;">Send Ctrl+Alt+Del</a>
