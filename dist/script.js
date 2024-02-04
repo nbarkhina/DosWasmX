@@ -153,8 +153,8 @@ class MyClass {
         else
             this.mobileMode = false;
 
-        // mac only supports 250 megs??
-        if (navigator.userAgent.toLocaleLowerCase().includes('macintosh'))
+        // Firefox only supports 250 megs??
+        if (navigator.userAgent.toLocaleLowerCase().includes('firefox'))
         {
             this.initialHardDrive = 'hd_250';
         }
