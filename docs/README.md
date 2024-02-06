@@ -24,7 +24,7 @@ Simply drag and drop a ZIP file of whatever game or app you want to play, and DO
 DOS Wasm X emulates DOS and supports all the commands found in the DOSBox-X emulator on which DOS Wasm X is based.
 You can find out more in the [DOSBox-X online wiki](https://dosbox-x.com/wiki/).
 # Installing Windows 95/98
-To install Windows 95 or Windows 98, make a ZIP file of the Windows installer and drag it onto the startup screen.
+To install Windows 95 or Windows 98, you can either use an ISO or you can make a ZIP file of the Windows installer and drag it onto the startup screen.
 DOS Wasm X will unpack the ZIP file and drop you into the `C:\WIN98` directory where you can then run `setup.exe` to start the install.
 The directory name will be based on the name of the ZIP file you create.
 Run through the Windows installation like you would have on a normal computer.<br/><br/>
