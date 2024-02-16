@@ -9,7 +9,7 @@ You will need:
 
 First, get yourself a copy of DOS Wasm X.
 # Getting DOS Wasm X
-You can [download a release](https://github.com/nbarkhina/DosWasmX/releases) or [compile the emulator from source](https://nbarkhina.github.io/doswasmx/compile-from-source).
+You can (1) [download a release](https://github.com/nbarkhina/DosWasmX/releases) or (2) [compile the emulator from source](https://nbarkhina.github.io/DosWasmX/compile-from-source).
 # Hosting and Running
 DosWasmX is a web-based DOS emulator.
 It is hosted by a web server and runs in your web browser.
@@ -18,7 +18,7 @@ For example, if you are running Apache2 on a Linux server named `foo`, and you a
 This assumes that your web server will treat `index.html` as the default page.
 # Settings
 Before you startup DOS Wasm X, you should configure your preferred `Settings` for your virtual machine.<br/>
-![Settings](https://nbarkhina.github.io/doswasmx/settings.png)<br/>
+![Settings](https://nbarkhina.github.io/DosWasmX/settings.png)<br/>
 ### _NOTE: You cannot resize the virtual disk later_
 The size you pick now will be the size later.
 You can always export the hard drive and load a new one, but always make sure to select the size you need for your use up-front.
@@ -28,10 +28,10 @@ The next step is to pick an operating system.
 If you are planning to do everything in `DOS` mode, like play DOS games, there is no need to install an operating system.
 Simply drag and drop a ZIP file of whatever game or app you want to play, and DOS Wasm X will startup automatically.
 Keep in mind your hard disk will __NOT__ be saved automatically.
-Before you close your web browser, to save changes, click __Save Drive__ in the menu.</br>
-![Settings](https://nbarkhina.github.io/doswasmx/save-drive.png)<br/>
+Before you close your web browser, to save changes, click __Save Drive__ in the menu.<br/>
+![Settings](https://nbarkhina.github.io/DosWasmX/save-drive.png)<br/>
 ## Windows
 You can install Windows 95 or Windows 98 Second Edition on DOS Wasm X.
-For instructions on Windows 98, see [here](https://nbarkhina.github.io/doswasmx/windows-98).
+For instructions on Windows 98, see the [Windows 98 page here](https://nbarkhina.github.io/DosWasmX/windows-98).
 #### _DOS Wasm X Online Documentation_
-#### [DOS Commands](https://nbarkhina.github.io/doswasmx/dos-commands) | [Getting Started](https://nbarkhina.github.io/doswasmx) | [Compile from Source](https://nbarkhina.github.io/doswasmx/compile-from-source) | [Windows 98](https://nbarkhina.github.io/doswasmx/windows-98)
+#### [DOS Commands](https://nbarkhina.github.io/DosWasmX/dos-commands) | [Getting Started](https://nbarkhina.github.io/DosWasmX) | [Compile from Source](https://nbarkhina.github.io/DosWasmX/compile-from-source) | [Windows 98](https://nbarkhina.github.io/DosWasmX/windows-98)
