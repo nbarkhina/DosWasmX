@@ -20,5 +20,9 @@ The emulator throws an error and stops execution.
 This does not happen with Windows 98 Second Edition, but does happen with Windows 98 SR1, the first release of Windows 98.
 This issue has been logged [here](https://github.com/nbarkhina/DosWasmX/issues/2) as a known issue with Windows 98 SR1.
 If you are having this problem, unfortunately the only option is to delete your hard disk and install Windows 98 Second Edition.
+## Installing Windows 1.0
+In order to install Windows 1.0 you will need to set the DOS version to 3.4 in the settings before starting the emulator. Also if you want mouse support you will need to switch it to use the Serial Mouse port. To do this you can take advantage of another DosWasmX feature that allows you to automate commands at startup. Simply create a "DOSWASMX.BAT" file on your virtual C Drive and put the following commands:
+![DosWasmX.BAT](https://nbarkhina.github.io/DosWasmX/doswasmxbat.png)<br/>
+This will do the following: automatically sets the DOS version to 3.4, sets the serial mouse mode, and boots into windows. You can also add other commands to this file in order to automate any other actions you want at startup (normal DosBox commands work as well).
 #### _DOS Wasm X Online Documentation_
 #### [DOS Commands](https://nbarkhina.github.io/DosWasmX/dos-commands) | [Getting Started](https://nbarkhina.github.io/DosWasmX) | [Compile from Source](https://nbarkhina.github.io/DosWasmX/compile-from-source) | [Windows 98](https://nbarkhina.github.io/DosWasmX/windows-98)

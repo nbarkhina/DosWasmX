@@ -169,7 +169,7 @@ class MyClass {
 
         if (this.iosMode)
         {
-            this.initialHardDrive = 'hd -size 64';
+            this.initialHardDrive = 'hd -size 25';
         }
 
         if (this.mobileMode)
