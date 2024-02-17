@@ -1531,8 +1531,15 @@ extern void set_autoexec_internal();
 void fatDrive::fatDriveInit(const char *sysFilename, uint32_t bytesector, uint32_t cylsector, uint32_t headscyl, uint32_t cylinders, uint64_t filesize, const std::vector<std::string> &options) {
 
 	//this will store the name of the img file we mounted
-	sprintf(fat_drive_mount, "imgmount c \"%s\"\r\n", sysFilename);
-	set_autoexec_internal();
+	if (filesize > 10000)
+	{
+		//if the filesize is less than 10mb its most likely a floppy disk
+		//so we don't want to store the imgmount command for that
+		sprintf(fat_drive_mount, "imgmount c \"%s\"\r\n", sysFilename);
+		set_autoexec_internal();
+	}
+
+	
 
 	Bits opt_startsector = Bits(-1),opt_countsector = Bits(-1);
 	uint32_t startSector = 0,countSector = 0;

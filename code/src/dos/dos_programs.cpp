@@ -2127,12 +2127,16 @@ public:
         if (drive == 'C')
         {
             bool foundWindows = false;
+            bool foundDos = false;
+            bool foundOS = false;
+            bool foundNoBoot = false;
             DOS_DTA dta(dos.dta());
             int lfn_filefind_handle = LFN_FILEFIND_NONE;
-            bool ret = DOS_FindFirst("\"C:\\*.*\"", 0xffff), found = true, first = true;
+            bool ret = DOS_FindFirst("\"C:\\*.*\"", 0xffff & ~DOS_ATTR_VOLUME);
             if (ret) {
                 std::string windows = std::string("WINDOWS");
-
+                std::string dosfolder = std::string("DOS");
+                std::string noboot = std::string("NOBOOT.TXT");
                 std::vector<DtaResult> results;
 
                 lfn_filefind_handle = uselfn ? LFN_FILEFIND_INTERNAL : LFN_FILEFIND_NONE;
@@ -2140,24 +2144,77 @@ public:
                     DtaResult result;
                     dta.GetResult(result.name, result.lname, result.size, result.hsize, result.date, result.time, result.attr);
                     results.push_back(result);
-                    
+
+                    //this allows us to disable boot per hard drive
+                    if (noboot == std::string(result.name))
+                    {
+                        printf("found noboot.txt\n");
+                        foundNoBoot = true;
+                    }
+
+                    if (dosfolder == std::string(result.name))
+                    {
+                        printf("found dos\n");
+                        foundDos = true;
+                        foundOS = true;
+
+                        //TODO also look for something particular in the DOS folder
+                        //because theres a small chance they just have a folder called DOS
+                    }
+
                     if (windows == std::string(result.name))
                     {
                         printf("found windows\n");
                         foundWindows = true;
                     }
-
                 } while ((ret = DOS_FindNext()));
 
-                printf("got stuff\n");
+                printf("finished search\n");
             }
 
-            if (!foundWindows)
+            if (foundWindows)
+            {
+                DOS_DTA dta(dos.dta());
+                bool ret = DOS_FindFirst("\"C:\\WINDOWS\\*.*\"", 0xffff & ~DOS_ATTR_VOLUME);
+                std::vector<DtaResult> results;
+
+                if (ret) {
+                    //it needs to be 32 bit windows to boot
+                    //so atleast windows 95/98
+                    std::string rundll = std::string("RUNDLL32.EXE");
+
+                    do {    /* File name and extension */
+                        DtaResult result;
+                        dta.GetResult(result.name, result.lname,
+                            result.size, result.hsize, result.date,
+                            result.time, result.attr);
+                        results.push_back(result);
+
+                        if (rundll == std::string(result.name))
+                        {
+                            printf("found rundll\n");
+                            foundOS = true;
+                        }
+
+                    } while ((ret = DOS_FindNext()));
+                }
+
+                printf("finished search\n");
+            }
+
+            if (!foundOS)
             {
                 WriteOut("Windows not found. Enjoy DOS Mode!\n");
                 printf("windows not found\n");
                 return;
             }
+
+            if (foundNoBoot)
+            {
+                WriteOut("Noboot.txt found. Cancelling Boot.\n");
+                return;
+            }
+
         }
 
         if(!bootbyDrive)
@@ -5913,6 +5970,7 @@ class IMGMOUNT : public Program {
 			}
 
 			bool imgsizedetect = isHardDrive && sizes[0] == 0;
+            bool detectedFloppy = false;
 
 			std::vector<DOS_Drive*> imgDisks;
 			std::vector<std::string>::size_type i;
@@ -6036,7 +6094,22 @@ class IMGMOUNT : public Program {
 						}
 					}
 					if (!skipDetectGeometry && !DetectGeometry(NULL, paths[i].c_str(), sizes)) {
-						errorMessage = "Unable to detect geometry\n";
+                        const char* ext = strrchr(paths[i].c_str(), '.');
+                        if (!strcasecmp(ext, ".img"))
+                        {
+                            //MAYBE ITS A FLOPPY DISK?
+                            detectedFloppy = true;
+                            bool* modifyDrive = (bool*) &isHardDrive;
+                            modifyDrive[0] = false;
+
+                            char* modifyLetter = (char*)&drive;
+                            modifyLetter[0] = 'A';
+                        }
+                        else
+                        {
+                            errorMessage = "Unable to detect geometry\n";
+                        }
+
 					}
 				}
 
@@ -6071,6 +6144,14 @@ class IMGMOUNT : public Program {
 							errorMessage = ver_msg;
 						}
 					} else {
+                        if (detectedFloppy)
+                        {
+                            printf("detected floppy disk\n");
+                        }
+                        if (drive == 'A')
+                        {
+                            printf("floppy disk mounted\n");
+                        }
 						diskfiles[i]=fdrive->loadedDisk->diskimg;
 						if ((vhdImage&&ro)||roflag) fdrive->readonly=true;
 					}
@@ -6133,6 +6214,28 @@ class IMGMOUNT : public Program {
 					}
 				}
 			}
+
+            //print C drive root files
+            DOS_DTA dta(dos.dta());
+            int lfn_filefind_handle = LFN_FILEFIND_NONE;
+            char path_search[300];
+            sprintf(path_search, "\"%C:\\*.*\"", drive);
+            bool ret = DOS_FindFirst(path_search, 0xffff), found = true, first = true;
+            if (ret) {
+                std::vector<DtaResult> results;
+                lfn_filefind_handle = uselfn ? LFN_FILEFIND_INTERNAL : LFN_FILEFIND_NONE;
+                do {    /* File name and extension */
+                    DtaResult result;
+                    dta.GetResult(result.name, result.lname, result.size, result.hsize, result.date, result.time, result.attr);
+                    results.push_back(result);
+
+                    printf("drive mounted %c file: %s\n", drive, result.name);
+
+                } while ((ret = DOS_FindNext()));
+
+                printf("finished iso detection\n");
+            }
+
 			return true;
 		}
 

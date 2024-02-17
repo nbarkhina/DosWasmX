@@ -281,6 +281,7 @@ main.js: $(FILES)
     '_neil_toggle_pause','_neil_update_cpu','_neil_send_ctrlaltdel', \
     '_neil_toggle_16_bit_color_fix','_neil_update_autoexec_additional', \
     '_neil_toggle_always_use_backbuffer','_neil_change_iso','_neil_send_dos_commands', \
+    '_neil_load_floppy','_neil_change_floppy', \
     '_neil_turbo']" \
 	-s INVOKE_RUN=0 \
     -sUSE_SDL=2 -sUSE_SDL_TTF=2

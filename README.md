@@ -4,11 +4,12 @@ This is a browser based DOS emulator designed around ease of use and stability. 
 Supports the following features -
 - Fully web based application - using web assembly
 - Save hard drive to the browser (512mb, 1 gig, or 2 gig options)
-- Automatic support for a variety of file formats (Iso, Zip, Bin, Cue, Img)
+- Automatic support for a variety of file formats (Iso, Zip, Bin, Cue, Img, 7z)
 - Customize RAM (32mb, 64mb, 128mb)
 - Import/export files into and out of the emulator
 - Export your entire hard disk image for local saving
 - Load/change CD while emulator is running
+- Floppy Disk Support
 - Audio support
 - Full screen
 - Zoom controls

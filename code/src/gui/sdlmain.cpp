@@ -82,19 +82,22 @@ extern int tryconvertcp, Reflect_Menu(void);
 bool ctrlAltDelRequested = false;
 bool updateCpuRequested = false;
 bool changedIsoRequested = false;
+bool changeFloppyRequested = false;
+bool loadFloppyRequested = false;
 bool saveStateRequested = false;
 bool loadStateRequested = false;
 bool exportFilesRequested = false;
 bool exitToDosRequested = false;
 bool togglePauseRequested = false;
 char change_iso_filename[250];
+char change_floppy_filename[250];
+char load_floppy_filename[250];
 int keyRequested;
 bool requestSendKey = false;
 bool requestSendCommand = false;
 char send_command_neil[2000];
 bool upLast = false; bool upPressed = false;
 bool downLast = false; bool downPressed = false;
-bool getDirsNeil = false;
 
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE
@@ -5594,6 +5597,7 @@ struct DtaResult {
 };
 
 extern DOS_Block dos;
+void runImgmount(const char* str);
 
 void neilMain()
 {
@@ -5601,46 +5605,26 @@ void neilMain()
 
     //TEMPORARY FOR DEBUGGING
 #ifdef _WIN32
-        //   upPressed = false;
-        //   if (keyboardState[SDL_SCANCODE_A]) upPressed = true;
-        //   if (upPressed && upLast == false) 
-        //   { 
-        //       printf("A pressed\n"); 
-        //       requestSendCommand = true;
-        //   }
-        //   upLast = upPressed;
+        //upPressed = false;
+        //if (keyboardState[SDL_SCANCODE_A]) upPressed = true;
+        //if (upPressed && upLast == false) 
+        //{ 
+        //    printf("A pressed\n"); 
+        //    loadFloppyRequested = true;
+        //}
+        //upLast = upPressed;
 
-    //  downPressed = false;
-    //  if (keyboardState[SDL_SCANCODE_S]) downPressed = true;
-    //  if (downPressed && downLast == false) 
-    //  { 
-    //      printf("S pressed\n"); 
-    //      sprintf(cpu_cycles_update, "cycles=auto");
-    //      updateCpuRequested = true;
-    //  }
-    //  downLast = downPressed;
+        //downPressed = false;
+        //if (keyboardState[SDL_SCANCODE_S]) downPressed = true;
+        //if (downPressed && downLast == false) 
+        //{ 
+        //    sprintf(change_floppy_filename, "DISK02.IMG");
+        //    changeFloppyRequested = true;
+        //    printf("S pressed\n"); 
+        //}
+        //downLast = downPressed;
 #endif
 
-    if (getDirsNeil)
-    {
-        DOS_DTA dta(dos.dta());
-        int lfn_filefind_handle = LFN_FILEFIND_NONE;
-        getDirsNeil = false;
-        bool ret = DOS_FindFirst("\"D:\\*.*\"", 0xffff & ~DOS_ATTR_VOLUME), found = true, first = true;
-        if (ret) {
-            std::vector<DtaResult> results;
-
-            lfn_filefind_handle = uselfn ? LFN_FILEFIND_INTERNAL : LFN_FILEFIND_NONE;
-            do {    /* File name and extension */
-                DtaResult result;
-                dta.GetResult(result.name, result.lname, result.size, result.hsize, result.date, result.time, result.attr);
-                results.push_back(result);
-
-            } while ((ret = DOS_FindNext()));
-
-            printf("got stuff\n");
-        }
-    }
     if (updateCpuRequested)
     {
         updateCpuRequested = false;
@@ -5652,6 +5636,22 @@ void neilMain()
         menu_update_autocycle();
 
         printf("cpu updated %s\n",cpu_cycles_update);
+    }
+    if (loadFloppyRequested)
+    {
+        loadFloppyRequested = false;
+        runImgmount(load_floppy_filename);
+    }
+    if (changeFloppyRequested)
+    {
+        changeFloppyRequested = false;
+        char drive = 'A';
+        std::vector<std::string> options;
+        fatDrive* newDrive = new fatDrive(change_floppy_filename, 0, 0, 0, 0, options);
+        if (newDrive) 
+        {
+            DriveManager::ChangeDisk(drive - 'A', newDrive);
+        }
     }
     if (changedIsoRequested)
     {
@@ -10322,6 +10322,18 @@ extern "C" {
     {
         sprintf(change_iso_filename, filename);
         changedIsoRequested = true;
+    }
+
+    void neil_load_floppy(char* filename)
+    {
+        sprintf(load_floppy_filename, "A \"%s\"", filename);
+        loadFloppyRequested = true;
+    }
+
+    void neil_change_floppy(char* filename)
+    {
+        sprintf(change_floppy_filename, filename);
+        changeFloppyRequested = true;
     }
 
     void neil_send_key(int key)
