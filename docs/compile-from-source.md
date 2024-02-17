@@ -22,4 +22,4 @@ You will need a Linux environment to build DOS Wasm X
 - this process will update the main.js and main.wasm files in your dist folder
 - now serve the dist folder from a webserver and Enjoy!
 #### _DOS Wasm X Online Documentation_
-#### [DOS Commands](https://nbarkhina.github.io/doswasmx/dos-commands) | [Getting Started](https://nbarkhina.github.io/doswasmx) | [Compile from Source](https://nbarkhina.github.io/doswasmx/compile-from-source) | [Windows 98](https://nbarkhina.github.io/doswasmx/windows-98)
+#### [DOS Commands](https://nbarkhina.github.io/DosWasmX/dos-commands) | [Getting Started](https://nbarkhina.github.io/DosWasmX) | [Compile from Source](https://nbarkhina.github.io/DosWasmX/compile-from-source) | [Windows 98](https://nbarkhina.github.io/DosWasmX/windows-98)
