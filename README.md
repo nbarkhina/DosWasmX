@@ -71,7 +71,7 @@ var DOSWASMSETTINGS = {
 
 ```
 
-## Docker
+# Docker
 
 If you wish to run directly in a container, you can use the following command after installing Docker Desktop:
 
@@ -80,6 +80,10 @@ docker run -d -p 80:80 nbarkhina/doswasmx
 ```
 
 Once it has started, you can open your browser to [http://localhost](http://localhost).
+
+# Online Documentation
+
+For more extensive guides and technical information please refer to our [Online Documentation](https://nbarkhina.github.io/DosWasmX/)
 
 # Screenshots
 
