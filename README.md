@@ -72,6 +72,11 @@ var DOSWASMSETTINGS = {
 
 ```
 
+# Startup Script
+You can automate a startup script by creating a "DOSWASMX.BAT" file. It needs to live in the root C:\ drive, not in any subfolder. At the root type "EDIT DOSWASMX.BAT" to create the file and put each command on a seperate line. Then save your file and the hard drive. Example -
+
+![doswasmx.bat](docs/doswasmxbat.png)
+
 # Docker
 
 If you wish to run directly in a container, you can use the following command after installing Docker Desktop:
