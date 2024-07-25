@@ -70,8 +70,8 @@
                 <button class="btn btn-primary mt-4" onclick="myApp.loadRom();" id="btnLoad"
                     rv-if="data.loggedIn | ev '==true'"
                     rv-disabled="data.moduleInitializing">Play Game</button>
-                <span rv-if="data.dblistDisks | ev_string '.length > 0'">
-                    <button class="btn btn-primary mt-4" onclick="myApp.loadRom(true);" id="btnStart"
+                <span>
+                    <button class="btn btn-primary mt-4" onclick="myApp.loadRom();" id="btnStart"
                         rv-disabled="data.moduleInitializing"
                         rv-if="data.loggedIn | ev '==false'">Start Computer</button>    
                 </span>
@@ -99,11 +99,11 @@
                 <input id="file-upload" type="file" multiple />
         
                 <!-- ROM LIST -->
-                <div class="form-group mt-2 mb-4" rv-if="data.loggedIn | ev '==true'"
+                <div class="form-group mt-2 mb-4" 
                     style="width: 300px;margin-left: auto; margin-right:auto;">
                     <select class="form-control" id="romselect">
                         <option rv-each-rom="data.romList" rv-skipiso="rom.skipiso" 
-                            rv-ram="rom.ram" rv-value="rom.url">{rom.title}</option>
+                            rv-ram="rom.ram" rv-value="rom.url" rv-autostart="rom.autostart">{rom.title}</option>
                     </select>
                 </div>
 

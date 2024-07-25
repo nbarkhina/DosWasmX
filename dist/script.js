@@ -24,7 +24,8 @@ class MyClass {
         this.floppyMounted = false;
         this.canvasHeight = 480;
         this.ram = 32;
-        this.initialHardDrive = 'hd_520';
+        this.autostart = "";
+        this.initialHardDrive = 'hd -size 25';
         this.dosVersion = '7.1';
         this.iso_loaded = false;
         this.noIso = false;
@@ -880,6 +881,9 @@ class MyClass {
                     //'xcopy e:\\uploaded\\*.* c:\\uploaded /I /E\r\nmount -u e\r\nc:\r\ncd uploaded\r\n'
                     );
             }
+
+            if (this.autostart)
+                responseText += this.autostart + "\r\n";
         }
         else if (this.noIso)
         {
@@ -1013,6 +1017,7 @@ class MyClass {
         {
             let romurl = this.readRomProp("value");
             let ram = this.readRomProp("ram");
+            let autostart = this.readRomProp("autostart");
             this.rom_name = this.extractRomName(romurl);
             if (ram)
             {
@@ -1021,6 +1026,10 @@ class MyClass {
             if (this.settings.ISOURL)
             {
                 romurl = this.settings.ISOURL + romurl;
+            }
+            if (autostart)
+            {
+                this.autostart = autostart;
             }
             this.extractBaseName();
 
