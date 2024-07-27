@@ -741,7 +741,15 @@ class MyClass {
             else if (!this.loggedIn)
             {
 
-                if (this.dblistDisks.length == 0)
+                let foundDisk = false;
+                this.dblistDisks.forEach(disk => {
+                    if (disk.substr(0,disk.length-5)==myClass.base_name)
+                    {
+                        foundDisk = true;
+                    }
+                });
+
+                if (!foundDisk)
                 {
                     if (this.settings.DEFAULTIMG)
                     {
@@ -905,10 +913,11 @@ class MyClass {
 
             responseText = responseText.replace('[autoexec]',
                 '[autoexec]\r\nimgmount c \"' + this.base_name +
-                '.img\"\r\nmount d \"' + this.rom_name +
-                '\"\r\nXCOPY D:\ C:\\' + sanitized + ' /I /E\r\n' +
-                'mount -u d\r\n' + multiFileScript + 'boot c:');
-            this.winNotFoundCommands = 'cd ' + sanitized + '\r\n';
+                '.img\"\r\nc:\r\n');
+            responseText += 'cd ' + sanitized + '\r\n';
+
+            if (this.autostart)
+                responseText += this.autostart + "\r\n";
         }
         else
         {
@@ -1397,7 +1406,7 @@ class MyClass {
     findSavestateInDatabase() {
 
         let imgKey = myClass.base_name;
-        if (!myClass.loggedIn) imgKey = 'win95';
+        // if (!myClass.loggedIn) imgKey = 'win95';
         imgKey += + '.savestate';
 
         myClass.dblistSavestates.forEach(save => {
@@ -1431,7 +1440,7 @@ class MyClass {
             var transaction = db.transaction("DOSWASMXSTATES", "readwrite");
             var romStore = transaction.objectStore("DOSWASMXSTATES");
             let imgKey = myClass.base_name;
-            if (!myClass.loggedIn) imgKey = 'win95';
+            // if (!myClass.loggedIn) imgKey = 'win95';
 
             if (saveType == SaveTypes.Savestate)
             {
@@ -1508,7 +1517,7 @@ class MyClass {
             var db = ev.target.result;
             var romStore = db.transaction("DOSWASMXSTATES", "readwrite").objectStore("DOSWASMXSTATES");
             let imgKey = myClass.base_name;
-            if (!myClass.loggedIn) imgKey = 'win95';
+            // if (!myClass.loggedIn) imgKey = 'win95';
 
             if (saveType == SaveTypes.Savestate)
             {
@@ -1577,8 +1586,14 @@ class MyClass {
     }
 
     clearHardDrive(){
+        
+        this.dblistDisks.forEach(disk => {
+            this.deleteDrive(disk);
+        });
 
-        let romToDelete = 'win95.disk';
+    }
+
+    deleteDrive(romToDelete) {
 
         if (!window["indexedDB"]==undefined){
             console.log('indexedDB not available');
@@ -1594,7 +1609,7 @@ class MyClass {
             try {
                 // report that the data item has been deleted
                 transaction.oncomplete = function() {
-                    toastr.success('Hard Drive Deleted');
+                    toastr.success('Hard Drive Deleted: ' + romToDelete);
                     $('#settingsModal').modal('hide');
                     myClass.dblistDisks = [];
                 };
@@ -1604,7 +1619,6 @@ class MyClass {
                 console.log(error);
             }
         }
-
     }
 
 
