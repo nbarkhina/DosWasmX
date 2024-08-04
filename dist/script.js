@@ -99,6 +99,9 @@ class MyClass {
         document.getElementById('file-upload').addEventListener('change', this.uploadRom.bind(this));
         document.getElementById('file-import').addEventListener('change', this.importFiles.bind(this));
 
+        document.getElementById('canvasDiv').addEventListener("click", this.canvasClick.bind(this));
+
+
         //comes from settings.js
         this.settings = window["DOSWASMSETTINGS"];
 
@@ -505,6 +508,22 @@ class MyClass {
         myClass.initCount++;
         myClass.finishInitialization();
         console.log('module initialized');
+    }
+
+    canvasClick(){
+        let isPointerCurrentlyLocked = document.pointerLockElement;
+        if (!isPointerCurrentlyLocked)
+            this.captureMouse();
+    }
+
+    captureMouse(){
+        let canvas = document.getElementById('canvas');
+
+        //mouse capture
+        canvas.requestPointerLock = canvas.requestPointerLock ||
+        canvas.mozRequestPointerLock;
+
+        canvas.requestPointerLock()
     }
 
     //need to wait for both indexedDB and wasm runtime
@@ -944,6 +963,9 @@ class MyClass {
         this.changeFloppyDisk = Module.cwrap('neil_change_floppy', null, ['string']);
         this.loadFloppyDisk = Module.cwrap('neil_load_floppy', null, ['string']);
         this.sendDosCommands = Module.cwrap('neil_send_dos_commands', null, ['string']);
+
+        this.captureMouse();
+
     }
 
     sanitizeName(name){
