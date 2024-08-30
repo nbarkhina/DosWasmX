@@ -25,6 +25,32 @@ Supports the following features -
 
 You can try it here: https://www.neilb.net/doswasmx/
 
+
+# Hosting
+You can host the app on your own web server. Copy everything in the `dist\` folder to your web server.
+
+Also you can optionally configure a Default Hard Drive to load when users navigate to your application. After Saving/Configuring a Hard Drive locally you can export it from the advanced menu.
+
+![exportdrive](screenshots/exportdrive.PNG)
+
+Then update the settings.js file with the path to your img file
+
+```javascript
+
+var DOSWASMSETTINGS = {
+    CLOUDSAVEURL: "",
+    ISOURL: "",
+    DEFAULTIMG: "https://www.yourwebsite.com/hdd.img"
+}
+
+```
+
+# Startup Script
+You can automate a startup script by creating a "DOSWASMX.BAT" file. It needs to live in the root C:\ drive, not in any subfolder. At the root type "EDIT DOSWASMX.BAT" to create the file and put each command on a seperate line. Then save your file and the hard drive. Example -
+
+![doswasmx.bat](docs/doswasmxbat.png)
+
+
 # Build Instructions
 You will need a Linux environment to build DOS Wasm X
 
@@ -52,30 +78,6 @@ You will need a Linux environment to build DOS Wasm X
 The emscripten installation above is a one time setup however you will need to always run `source ./emsdk_env.sh` from the emscripten folder every time you close the terminal and before running `make`. This is because the emscripten compiler does not get saved to the PATH
 
 ![builderror](screenshots/builderror2.PNG)
-
-# Hosting
-You can host the app on your own web server. Copy everything in the `dist\` folder to your web server.
-
-Also you can optionally configure a Default Hard Drive to load when users navigate to your application. After Saving/Configuring a Hard Drive locally you can export it from the advanced menu.
-
-![exportdrive](screenshots/exportdrive.PNG)
-
-Then update the settings.js file with the path to your img file
-
-```javascript
-
-var DOSWASMSETTINGS = {
-    CLOUDSAVEURL: "",
-    ISOURL: "",
-    DEFAULTIMG: "https://www.yourwebsite.com/hdd.img"
-}
-
-```
-
-# Startup Script
-You can automate a startup script by creating a "DOSWASMX.BAT" file. It needs to live in the root C:\ drive, not in any subfolder. At the root type "EDIT DOSWASMX.BAT" to create the file and put each command on a seperate line. Then save your file and the hard drive. Example -
-
-![doswasmx.bat](docs/doswasmxbat.png)
 
 # Docker
 
