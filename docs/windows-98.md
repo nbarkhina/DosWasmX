@@ -1,5 +1,5 @@
 # Installing Windows 98
-To install Windows 98, you should use a __bootable ISO of Windows 98 Second Edition__, such as the one that can be found on archive.org.
+To install Windows 98, you should use a __bootable ISO of Windows 98 Second Edition__.
 When you first run [DOS Wasm X](https://github.com/nbarkhina/DosWasmX) with your web browser, you will see a startup screen like this.<br/>
 ![Startup](https://nbarkhina.github.io/DosWasmX/win98-01-start.png)<br/>
 Drag the Windows 98 Second Edition ISO from your file explorer onto the square that says `Drag/Drop Files`.<br/>
