@@ -2802,7 +2802,7 @@ class MyClass {
 			this.canvas.width = this.frameWidth;
 			this.canvas.height = this.frameHeight;
 
-            if (this.mobileMode)
+            if (this.rivetsData.mobileMode)
             {
                 this.resizeCanvas();
             }
