@@ -10,12 +10,17 @@ Supports the following features -
 - Export your entire hard disk image for local saving
 - Load/change CD while emulator is running
 - Floppy Disk Support
+- Speed up/slow down emulator time
+- Mobile mode
+- On scren keyboard
+- Gamepad support
+- Customize Mouse Sensitivity
+- Dark Mode
 - Audio support
 - Full screen
 - Zoom controls
 - Mouse capture
 - Resize resolution
-- 16 and 32 bit color (via 16 bit color fix)
 - Customize CPU speed
 - Host the application yourself
 - Customize startup hard drive image
@@ -115,6 +120,19 @@ For more extensive guides and technical information please refer to our [Online 
 
 ![screenshot](screenshots/screenshot8.png)
 
+# Mobile Mode
+
+![screenshot](screenshots/mobile.PNG)
+
+# Overlay
+
+- There is also a built in Overlay menu which can be accessed by pressing the tilde key on the keyboard "~"
+- This can be useful for getting at certain functions when using a Gamepad Controller or to access the onscreen keyboard
+
+![screenshot](screenshots/overlay.PNG)
+
+![screenshot](screenshots/onscreenkeyboard.PNG)
+
 # Installing Windows
 DOS Wasm X supports installing Windows 95 or Windows 98 using your own copy of Windows. Simply drag and drop the ISO onto the startup page. DOS Wasm X will detect the Windows CD and begin the installation process. If you choose to Install Windows 95 you may get the error below. Simply click OK and then cancel when it asks you for the Path to the CD. This will allow you to continue with the installation. The reason for this error is because at this stage of the process the CD drivers have not yet been loaded. However after restarting Windows it will detect the CD Drive and finish installing the drivers successfuly. Always remember to shut down windows in the guest OS before exiting the page. This will automatically save your hard drive changes to the browser and prevent scandisk from running the next time you boot into Windows.
 
@@ -130,9 +148,18 @@ DOS Wasm X supports installing Windows 95 or Windows 98 using your own copy of W
 You can also type HELP at the command line to get a list of commands.
 
 # References
-- DOSBox-X https://github.com/joncampbell123/dosbox-x
-- Binaryen with Exceptions and Asyncify https://github.com/caiiiycuk/binaryen-fwasm-exceptions
-- Emscripten https://github.com/emscripten-core/emscripten
+The Following codebases were used in some part in creating this app
+
+- DOSBox-X (Core Engine)
+  - https://github.com/joncampbell123/dosbox-x 
+- DOSBox Pure (Onscreen Keyboard)
+  - https://github.com/schellingb/dosbox-pure
+- JS Dos (JSDos Asyncify Module)
+  - https://github.com/caiiiycuk/js-dos 
+- Binaryen with Exceptions and Asyncify 
+  - https://github.com/caiiiycuk/binaryen-fwasm-exceptions
+- Emscripten 
+  - https://github.com/emscripten-core/emscripten
 
 # Disclaimer
 This app was made for fun and is not affiliated or associated with Microsoft.
