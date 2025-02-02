@@ -91,6 +91,8 @@
 #include <windows.h>
 #endif
 
+#include <jsdos-asyncify.h>
+
 #include <list>
 
 /*===================================TODO: Move to it's own file==============================*/
@@ -321,22 +323,39 @@ extern bool allow_keyb_reset;
 extern bool ttf_dosv;
 #endif
 
-//neil todo: I think this will make it run twice as fase
-bool doubleSpeed = false;
+void neil_event_loop();
+void processOverlay();
+void neil_copy_back_buffer();
 
 extern bool DOSBox_Paused(), isDBCSCP(), InitCodePage();
 
 //#define DEBUG_CYCLE_OVERRUN_CALLBACK
 
 //For trying other delays
-#define wrap_delay(a) SDL_Delay(a)
 
 static Uint32 SDL_ticks_last = 0,SDL_ticks_next = 0;
-int frameCounter = 0;
+extern bool togglePauseRequested;
 
 static Bitu Normal_Loop(void) {
+#ifdef C_EMSCRIPTEN
+    asyncify_sleep(0);
+#endif
     bool saved_allow = dosbox_allow_nonrecursive_page_fault;
     Bits ret;
+
+    // NEIL: THIS IS THE NEW PAUSE LOOP
+    while (togglePauseRequested)
+    {
+#ifdef WIN32
+        SDL_Delay(16);
+#else
+        emscripten_sleep(100);
+#endif
+        neil_event_loop();
+        processOverlay();
+        neil_copy_back_buffer();
+    }
+
 
     if (!menu.hidecycles || menu.showrt) { /* sdlmain.cpp/render.cpp doesn't even maintain the frames count when hiding cycles! */
         uint32_t ticksNew = GetTicks();
@@ -377,7 +396,11 @@ static Bitu Normal_Loop(void) {
 
                 saved_allow = dosbox_allow_nonrecursive_page_fault;
                 dosbox_allow_nonrecursive_page_fault = true;
+                auto cycles = CPU_Cycles;
                 ret = (*cpudecoder)();
+#ifdef C_EMSCRIPTEN
+                jsdos::incCycles(cycles - CPU_Cycles);
+#endif
                 dosbox_allow_nonrecursive_page_fault = saved_allow;
 
                 if (GCC_UNLIKELY(ret<0))
@@ -419,14 +442,6 @@ static Bitu Normal_Loop(void) {
             } else {
                 GFX_Events();
                 if (DOSBox_Paused() == false && ticksRemain > 0) {
-                    if (doubleSpeed)
-                    {
-                        //double speed
-                        TIMER_AddTick();
-                    }
-                    
-
-
                     TIMER_AddTick();
                     ticksRemain--;
                 } else {
@@ -494,20 +509,13 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
 
     if (ticksNew <= ticksLast) { //lower should not be possible, only equal.
         ticksAdded = 0;
-// #ifdef ANOTHER_THING_TO_TRY
-//         frameCounter++;
-// 		wrap_delay(0);
-//         int32_t timeslept = 0;// std::max((int32_t)(GetTicks() - ticksNew), int32_t(1));
-//         int32_t first = (int32_t)(GetTicks() - ticksNew);
-//         int32_t second = int32_t(1);
-//         if (first > second)
-//             timeslept = first;
-//         else
-//             timeslept = second;
-// #else
+#ifdef C_EMSCRIPTEN
+
+		asyncify_sleep(1, true);
+        int32_t timeslept = std::max((int32_t)(GetTicks() - ticksNew), int32_t(1));
+#else
         if (!CPU_CycleAutoAdjust || CPU_SkipCycleAutoAdjust || sleep1count < 3) {
-            frameCounter++;
-            wrap_delay(0);
+            SDL_Delay(1);
         }
         else {
             /* Certain configurations always give an exact sleepingtime of 1, this causes problems due to the fact that
@@ -517,14 +525,16 @@ void increaseticks() { //Make it return ticksRemain and set it in the function a
             static const uint32_t sleeppattern[] = { 2, 2, 3, 2, 2, 4, 2 };
             static uint32_t sleepindex = 0;
             if (ticksDone != lastsleepDone) sleepindex = 0;
-            wrap_delay(sleeppattern[sleepindex++]);
+            SDL_Delay(sleeppattern[sleepindex++]);
             sleepindex %= sizeof(sleeppattern) / sizeof(sleeppattern[0]);
         }
+
         int32_t timeslept = (int32_t)(GetTicks() - ticksNew);
         // Count how many times in the current block (of 250 ms) the time slept was 1 ms
         if (CPU_CycleAutoAdjust && !CPU_SkipCycleAutoAdjust && timeslept == 1) sleep1count++;
         lastsleepDone = ticksDone;
-// #endif
+#endif
+
         // Update ticksDone with the time spent sleeping
         ticksDone -= timeslept;
 
@@ -687,6 +697,7 @@ uint32_t turbolasttick = 0;
 static void DOSBOX_UnlockSpeed( bool pressed ) {
     static bool autoadjust = false;
     if (pressed) {
+        printf("fast forward on\n");
         LOG_MSG("Fast Forward ON");
         turbolasttick = GetTicks();
         ticksLocked = true;
@@ -699,6 +710,7 @@ static void DOSBOX_UnlockSpeed( bool pressed ) {
             GFX_SetTitle((int32_t)CPU_CycleMax,-1,-1,false);
         }
     } else {
+        printf("fast forward off\n");
         LOG_MSG("Fast Forward OFF");
         ticksLocked = false;
         turbolasttick = 0;
@@ -742,7 +754,7 @@ void DOSBOX_SpeedUp( bool pressed ) {
         else
             emulator_speed = 5;
 
-        LOG_MSG("Emulation speed increased to (%u%%)",(unsigned int)emulator_speed);
+        printf("Emulation speed increased to (%u%%)\n",(unsigned int)emulator_speed);
     }
 }
 
@@ -754,7 +766,7 @@ void DOSBOX_SlowDown( bool pressed ) {
         else
             emulator_speed = 1;
 
-        LOG_MSG("Emulation speed decreased to (%u%%)",(unsigned int)emulator_speed);
+        printf("Emulation speed decreased to (%u%%)\n",(unsigned int)emulator_speed);
     }
 }
 
@@ -981,9 +993,7 @@ void SetCyclesCount_mapper_shortcut_RunEvent(Bitu /*val*/) {
 
 void SetCyclesCount_mapper_shortcut(bool pressed) {
     if (!pressed) return;
-    // #ifdef _WIN32
     PIC_AddEvent(SetCyclesCount_mapper_shortcut_RunEvent, 0.0001f); //In case mapper deletes the key object that ran it
-    // #endif
 }
 
 void SetIME() {
@@ -5033,4 +5043,27 @@ private:
 		ticksScheduled = 0;
 	}
 } dummy;
+}
+
+extern "C" {
+
+    void neilTurboMode()
+    {
+        DOSBOX_UnlockSpeed(true);
+    }
+
+    void neilNormalMode()
+    {
+        DOSBOX_UnlockSpeed(false);
+    }
+
+    void neilSpeedUp()
+    {
+        DOSBOX_SpeedUp(true);
+    }
+
+    void neilSlowDown()
+    {
+        DOSBOX_SlowDown(true);
+    }
 }

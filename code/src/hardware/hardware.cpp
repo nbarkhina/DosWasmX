@@ -45,6 +45,14 @@ std::string pathvid = "", pathwav = "", pathmtw = "", pathmid = "", pathopl = ""
 bool native_zmbv = false;
 bool export_ffmpeg = false;
 
+bool enable_autosave = false;
+int autosave_second = 0, autosave_count = 0, autosave_start[10], autosave_end[10], autosave_last[10];
+std::string autosave_name[10];
+
+void CAPTURE_MultiTrackAddWave(uint32_t freq, uint32_t len, int16_t* data, const char* name) {}
+void CAPTURE_Init(void) {}
+void HARDWARE_Init(void) {}
+
 void CAPTURE_StartCapture(void) {
 }
 

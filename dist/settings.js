@@ -1,6 +1,5 @@
 var DOSWASMSETTINGS = {
     CLOUDSAVEURL: "",
-    ISOURL: "",
     DEFAULTIMG: ""
 }
 

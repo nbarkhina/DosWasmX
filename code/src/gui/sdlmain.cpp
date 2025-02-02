@@ -176,6 +176,10 @@ bool downLast = false; bool downPressed = false;
 # include <shobjidl.h>
 #endif
 
+#ifdef C_EMSCRIPTEN
+#include <jsdos-asyncify.h>
+#endif
+
 //#include <output/output_direct3d.h>
 //#include <output/output_opengl.h>
 #include "../output/output_surface.h"
@@ -983,11 +987,14 @@ char iso_drive_mount[250];
 char neil_autoexec_additional[500];
 char import_folder_name[100];
 char cpu_cycles_update[250];
+#ifdef WIN32
+bool showFPS = true;
+#else
 bool showFPS = false;
+#endif
 int toastTimer = 0;
 char toast_message[250];
 extern int frameCounter;
-extern int cycleCounterNeil;
 
 void set_autoexec_internal();
 
@@ -1050,8 +1057,6 @@ void GFX_SetTitle(int32_t cycles, int frameskip, Bits timing, bool paused) {
         strcat(title, key.size()?(" ["+key+" releases mouse]").c_str():" [mouse locked]");
     }
 
-    cycleCounterNeil = internal_cycles;
-    //sprintf(fps_text, "%d cyc, %2d%%  ", (int)internal_cycles, (int)floor((rtdelta / 10) + 0.5));
 
     if (paused) strcat(title," PAUSED");
 #if C_DEBUG
@@ -1539,8 +1544,58 @@ SDL_Window* GFX_GetSDLWindow(void) {
     return sdl.window;
 }
 
+bool user_cursor_locked = false;
+MOUSE_EMULATION user_cursor_emulation = MOUSE_EMULATION_NEVER;
+int user_cursor_x = 0,user_cursor_y = 0;
+int user_cursor_sw = 640, user_cursor_sh = 480;
+
+
+
+#ifdef C_EMSCRIPTEN
+EM_JS(void, neil_resolution_changed, (int width, int height), {
+    console.log('ems: neil-resolution-changed');
+    myApp.HandleMessage("neil-resolution-changed", {width : width, height : height});
+});
+#else
+extern void neil_resolution_changed(int width, int height);
+#endif
+
+int doswidth = 640;
+int dosheight = 480;
+
+#include "../../ezdib.h"
+HEZDIMAGE hDib;
+HEZDFONT hFont;
+char user_header[EZD_HEADER_SIZE];
+void initEZD();
+
 SDL_Window* GFX_SetSDLWindowMode(uint16_t width, uint16_t height, SCREEN_TYPES screenType) 
 {
+    doswidth = width;
+	dosheight = height;
+    neil_resolution_changed(width, height);
+
+    //recreate ezd
+    ezd_destroy(hDib);
+    initEZD();
+
+
+    user_cursor_sw = width;
+    user_cursor_sh = height;
+    sdl.window_desired_width = width;
+    sdl.window_desired_height = height;
+    currentWindowWidth = width;
+    currentWindowHeight = height;
+    if (sdl.surface) {
+        SDL_FreeSurface(sdl.surface);
+    }
+    sdl.surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
+        0x000000ff,
+        0x0000ff00,
+        0x00ff0000,
+        0xff000000);
+    return reinterpret_cast<SDL_Window*>(sdl.surface);
+
     static SCREEN_TYPES lastType = SCREEN_SURFACE;
     if (sdl.renderer) {
         SDL_DestroyRenderer(sdl.renderer);
@@ -2972,13 +3027,7 @@ void GFX_OpenGLRedrawScreen(void) {
 #endif
 }
 
-void neilMain();
-
-void GFX_EndUpdate(const uint16_t *changedLines) {
-#if C_EMSCRIPTEN
-    // emscripten_sleep(0);
-#endif
-
+void GFX_EndUpdate(const uint16_t* changedLines) {
     /* don't present our output if 3Dfx is in OpenGL mode */
     if (sdl.desktop.prevent_fullscreen)
         return;
@@ -2988,8 +3037,8 @@ void GFX_EndUpdate(const uint16_t *changedLines) {
     if (d3d && d3d->getForceUpdate());
     else
 #endif
-    if (((sdl.desktop.type != SCREEN_OPENGL) || !RENDER_GetForceUpdate()) && !sdl.updating)
-        return;
+        if (((sdl.desktop.type != SCREEN_OPENGL) || !RENDER_GetForceUpdate()) && !sdl.updating)
+            return;
 #if C_OPENGL
     bool actually_updating = sdl.updating;
 #endif
@@ -3001,50 +3050,40 @@ void GFX_EndUpdate(const uint16_t *changedLines) {
     }
 #endif
 
-    switch (sdl.desktop.type) 
+    switch (sdl.desktop.type)
     {
-        case SCREEN_SURFACE:
-            OUTPUT_SURFACE_EndUpdate(changedLines);
-            break;
+    case SCREEN_SURFACE:
+        OUTPUT_SURFACE_EndUpdate(changedLines);
+        break;
 
 #if C_OPENGL
-        case SCREEN_OPENGL:
-            // Clear drawing area. Some drivers (on Linux) have more than 2 buffers and the screen might
-            // be dirty because of other programs.
-            if (!actually_updating) {
-                /* Don't really update; Just increase the frame counter.
-                 * If we tried to update it may have not worked so well
-                 * with VSync...
-                 * (Think of 60Hz on the host with 70Hz on the client.)
-                 */
-                sdl_opengl.actual_frame_count++;
-                return;
-            }
-            OUTPUT_OPENGL_EndUpdate(changedLines);
-            break;
-#endif
-
-#if C_GAMELINK
-        case SCREEN_GAMELINK:
-            OUTPUT_GAMELINK_EndUpdate(changedLines);
-            break;
+    case SCREEN_OPENGL:
+        // Clear drawing area. Some drivers (on Linux) have more than 2 buffers and the screen might
+        // be dirty because of other programs.
+        if (!actually_updating) {
+            /* Don't really update; Just increase the frame counter.
+             * If we tried to update it may have not worked so well
+             * with VSync...
+             * (Think of 60Hz on the host with 70Hz on the client.)
+             */
+            sdl_opengl.actual_frame_count++;
+            return;
+        }
+        OUTPUT_OPENGL_EndUpdate(changedLines);
+        break;
 #endif
 
 #if C_DIRECT3D
-        case SCREEN_DIRECT3D:
-            OUTPUT_DIRECT3D_EndUpdate(changedLines);
-            break;
+    case SCREEN_DIRECT3D:
+        OUTPUT_DIRECT3D_EndUpdate(changedLines);
+        break;
 #endif
 
-        default:
-            break;
-    }
+    default:
+        break;
+}
 
-#if C_GAMELINK
-    OUTPUT_GAMELINK_Transfer();
-#endif
-
-    if (changedLines != NULL) 
+    if (changedLines != NULL)
     {
         sdl.must_redraw_all = false;
 
@@ -3052,7 +3091,7 @@ void GFX_EndUpdate(const uint16_t *changedLines) {
         sdl.surface->flags &= ~((unsigned int)SDL_HAX_NOREFRESH);
 #endif
 
-        if (changedLines != NULL && sdl.deferred_resize) 
+        if (changedLines != NULL && sdl.deferred_resize)
         {
             sdl.deferred_resize = false;
 #if !defined(C_SDL2)
@@ -3060,13 +3099,298 @@ void GFX_EndUpdate(const uint16_t *changedLines) {
             GFX_RedrawScreen(sdl.draw.width, sdl.draw.height);
 #endif
         }
-        else if (sdl.gfx_force_redraw_count > 0) 
+        else if (sdl.gfx_force_redraw_count > 0)
         {
-            void RENDER_CallBack( GFX_CallBackFunctions_t function );
+            void RENDER_CallBack(GFX_CallBackFunctions_t function);
             RENDER_CallBack(GFX_CallBackRedraw);
             sdl.gfx_force_redraw_count--;
         }
     }
+
+    if (changedLines) {
+        void neil_copy_back_buffer();
+        neil_copy_back_buffer();
+    }
+}
+
+unsigned char neil_back_buffer[16788288];
+
+#ifdef C_EMSCRIPTEN
+EM_JS(void, neil_update_frame, (unsigned char* data), {
+    myApp.HandleMessage("neil-update-frame", {pointer: data});
+});
+#else
+extern void neil_update_frame(unsigned char* data);
+#endif
+
+
+typedef uint32_t Bit32u;
+
+
+struct
+{
+    float mx, my, dx, dy, jx, jy, kx, ky, mspeed;
+    Bit32u pressed_time;
+    KBD_KEYS hovered_key, pressed_key;
+    bool held[KBD_LAST];
+} osk;
+
+enum { KWR = 10, KWTAB = 15, KWCAPS = 20, KWLS = 17, KWRSHIFT = 33, KWCTRL = 16, KWZERO = 22, KWBS = 28, KWSPACEBAR = 88, KWENTR = 18, KWPLUS };
+enum { KXX = 100 + KWR + 2, SPACEFF = 109, KSPLIT = 255, KSPLIT1 = 192, KSPLIT2 = 234, KWIDTH = KSPLIT2 + KWR * 4 + 2 * 3 };
+
+void AlphaBlend(Bit32u* p1, Bit32u p2)
+{
+    Bit32u a = (p2 & 0xFF000000) >> 24, na = 255 - a;
+    Bit32u rb = ((na * (*p1 & 0x00FF00FF)) + (a * (p2 & 0x00FF00FF))) >> 8;
+    Bit32u ag = (na * ((*p1 & 0xFF00FF00) >> 8)) + (a * (0x01000000 | ((p2 & 0x0000FF00) >> 8)));
+    *p1 = ((rb & 0x00FF00FF) | (ag & 0xFF00FF00));
+}
+
+void draw_onscreen_keyboard(unsigned int* buffer)
+{
+    static const uint8_t keyboard_rows[6][25] =
+    {
+        { KWR, KXX ,KWR,KWR,KWR,KWR,   SPACEFF,   KWR,KWR,KWR,KWR,   SPACEFF,   KWR,KWR,KWR,KWR , KSPLIT , KWR,KWR,KWR },
+        { KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,     KWBS , KSPLIT , KWR,KWR,KWR , KSPLIT , KWR,KWR,KWR,KWR    },
+        { KWTAB, KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWENTR , KSPLIT , KWR,KWR,KWR , KSPLIT , KWR,KWR,KWR,KWPLUS },
+        { KWCAPS, KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,          KSPLIT        ,        KSPLIT , KWR,KWR,KWR        },
+        { KWLS, KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,  KWR,       KWRSHIFT , KSPLIT , KXX,KWR,KXX , KSPLIT , KWR,KWR,KWR,KWPLUS },
+        { KWCTRL, KXX, KWCTRL,                  KWSPACEBAR,                 KWCTRL, KXX, KWCTRL , KSPLIT , KWR,KWR,KWR , KSPLIT , KWZERO ,KWR        },
+    };
+    static const KBD_KEYS keyboard_keys[6][25] =
+    {
+        { KBD_esc,KBD_NONE,KBD_f1,KBD_f2,KBD_f3,KBD_f4,KBD_NONE,KBD_f5,KBD_f6,KBD_f7,KBD_f8,KBD_NONE,KBD_f9,KBD_f10,KBD_f11,KBD_f12,KBD_NONE,KBD_printscreen,KBD_scrolllock,KBD_pause },
+        { KBD_grave, KBD_1, KBD_2, KBD_3, KBD_4, KBD_5, KBD_6, KBD_7, KBD_8, KBD_9, KBD_0, KBD_minus, KBD_equals,    KBD_backspace ,KBD_NONE,KBD_insert,KBD_home,KBD_pageup ,KBD_NONE,KBD_numlock,KBD_kpdivide,KBD_kpmultiply,KBD_kpminus },
+        { KBD_tab,KBD_q,KBD_w,KBD_e,KBD_r,KBD_t,KBD_y,KBD_u,KBD_i,KBD_o,KBD_p,KBD_leftbracket,KBD_rightbracket,          KBD_enter ,KBD_NONE,KBD_delete,KBD_end,KBD_pagedown,KBD_NONE,KBD_kp7,KBD_kp8,KBD_kp9,KBD_kpplus },
+        { KBD_capslock,KBD_a,KBD_s,KBD_d,KBD_f,KBD_g,KBD_h,KBD_j,KBD_k,KBD_l,KBD_semicolon,KBD_quote,KBD_backslash                 ,KBD_NONE               ,                 KBD_NONE,KBD_kp4,KBD_kp5,KBD_kp6 },
+        { KBD_leftshift,KBD_extra_lt_gt,KBD_z,KBD_x,KBD_c,KBD_v,KBD_b,KBD_n,KBD_m,KBD_comma,KBD_period,KBD_slash,KBD_rightshift    ,KBD_NONE,   KBD_NONE,KBD_up,KBD_NONE    ,KBD_NONE,KBD_kp1,KBD_kp2,KBD_kp3,KBD_kpenter },
+        { KBD_leftctrl,KBD_NONE,KBD_leftalt,                        KBD_space,                 KBD_rightalt,KBD_NONE,KBD_rightctrl ,KBD_NONE,  KBD_left,KBD_down,KBD_right  ,KBD_NONE,KBD_kp0,KBD_kpperiod },
+    };
+
+    int thickness = (doswidth < (KWIDTH + 10) ? 1 : ((int)doswidth - 10) / KWIDTH);
+    float ar = (float)doswidth / dosheight;
+    float fx = (doswidth < KWIDTH ? (doswidth - 10) / (float)KWIDTH : (float)thickness);
+    float fy = fx * ar * dosheight / doswidth;
+    int thicknessy = (int)(thickness * (fy / fx + .4f)); if (thicknessy < 1) thicknessy = 1;
+    int oskx = (int)(doswidth / fx / 2) - (KWIDTH / 2);
+    int osky = (osk.my && osk.my < (dosheight / fy / 2) ? 3 : (int)(dosheight / fy) - 3 - 65);
+
+    if (!osk.mspeed)
+    {
+        osk.mx = (float)(KWIDTH / 2);
+        osk.my = (float)(osky + 32);
+        osk.mspeed = 2.f;
+    }
+
+    if (osk.dx) { osk.mx += osk.dx; osk.dx = 0; }
+    if (osk.dy) { osk.my += osk.dy; osk.dy = 0; }
+    osk.mx += (osk.jx + osk.kx) * osk.mspeed;
+    osk.my += (osk.jy + osk.ky) * osk.mspeed;
+    if (osk.mx < 0)      osk.mx = 0;
+    if (osk.mx > KWIDTH) osk.mx = KWIDTH;
+    if (osk.my < 3) osk.my = (float)(3);
+    if (osk.my > (dosheight / fy) - 3) osk.my = (float)((dosheight / fy) - 3);
+    int cX = (int)((oskx + osk.mx) * fx); // mx is related to oskx
+    int cY = (int)((osk.my) * fy); // my is related to screen!
+
+    if (osk.pressed_key && (SDL_GetTicks() - osk.pressed_time) > 500)
+    {
+        osk.held[osk.pressed_key] = true;
+        osk.pressed_key = KBD_NONE;
+    }
+
+    // Draw keys and check hovered state
+    osk.hovered_key = KBD_NONE;
+    for (int row = 0; row != 6; row++)
+    {
+        int x = 0, y = (row ? 3 + (row * 10) : 0);
+        for (const uint8_t* k = keyboard_rows[row], *k_end = k + 25; k != k_end; k++)
+        {
+            int draww = *k, drawh = 8;
+            switch (*k)
+            {
+            case KWENTR:
+                x += 5;
+                drawh = 18;
+                break;
+            case KWPLUS:
+                draww = KWR;
+                drawh = 18;
+                break;
+            case KXX:case SPACEFF:
+                x += (*k - 100);
+                continue;
+            case KSPLIT:
+                x = (x < KSPLIT1 ? KSPLIT1 : KSPLIT2);
+                continue;
+            case 0: continue;
+            default: break;
+            }
+
+            int rl = (int)((oskx + x) * fx), rr = (int)((oskx + x + draww) * fx), rt = (int)((osky + y) * fy), rb = (int)((osky + y + drawh) * fy);
+            bool hovered = (cX >= rl && cX < rr&& cY >= rt && cY < rb);
+
+            KBD_KEYS kbd_key = keyboard_keys[row][k - keyboard_rows[row]];
+            if (hovered) osk.hovered_key = kbd_key;
+
+            Bit32u col = (osk.pressed_key == kbd_key ? 0x808888FF :
+                (osk.held[kbd_key] ? 0x80A0A000 :
+                    (hovered ? 0x800000FF :
+                        0x80FF0000)));
+
+            for (int ky = rt; ky != rb; ky++)
+                for (int kx = rl; kx != rr; kx++)
+                    AlphaBlend(buffer + ky * doswidth + kx, col);
+
+            for (int kx = rl - 1; kx <= rr; kx++)
+            {
+                AlphaBlend(buffer + (rt - 1) * doswidth + kx, 0xA0000000);
+                AlphaBlend(buffer + (rb)*doswidth + kx, 0xA0000000);
+            }
+            for (int ky = rt; ky != rb; ky++)
+            {
+                AlphaBlend(buffer + ky * doswidth + (rl - 1), 0x80000000);
+                AlphaBlend(buffer + ky * doswidth + (rr), 0x80000000);
+            }
+
+            x += (draww + 2);
+        }
+    }
+
+    // Draw key letters
+    static Bit32u keyboard_letters[] = { 3154116614U,3773697760U,3285975058U,432266297U,1971812352U,7701880U,235069918U,0,2986344448U,545521665U,304153104U,71320576U,2376196U,139756808U,1375749253U,15335968U,0,9830400U,148945920U,2023662U,471712220U,2013272514U,2239255943U,3789422661U,69122U,0,45568U,33824900U,67112993U,1090790466U,2215116836U,612698196U,42009088U,482U,0,2214592674U,553779744U,1107558416U,608207908U,1417938944U,1344776U,570589442U,1U,3053453312U,545521665U,270590494U,406963200U,1589316U,141854472U,3254809733U,31596257U,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3670272U,125847559U,805798000U,3934080U,14680064U,33555392U,19792160U,2149581128U,9961472U,134234113U,134250568U,2152203264U,9220U,1171071088U,563740792U,1476471297U,44048385U,16802816U,2013724704U,3670912U,125841412U,229412U,1271156960U,31500800U,23593262U,234995728U,268500992U,4196352U,33572868U,604241992U,544210944U,8000605U,572334506U,268519425U,320U,524544U,67125256U,1208025160U,2360320U,1428160512U,704645644U,19010849U,537395528U,2U,117471233U,805535808U,2150629504U,15367U,3588022272U,564789259U,1208009245U,2055U,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3759984128U,3936512U,285339655U,1610875024U,7343872U,14U,14747136U,31457518U,122892U,17835300U,150995985U,2417033280U,9438208U,134221833U,0,705569130U,302055425U,603980064U,285282333U,1074200636U,9439744U,251695108U,524304U,704643072U,19796705U,3758883072U,635699201U,68485456U,4196608U,67145732U,268501136U,2048U,560594944U,2147557906U,16781824U,2418353152U,267520U,67125257U,2416181392U,1048832U,33783816U,304163328U,4194594U,65554U,23076132U,151010314U,1610874944U,6292480U,234909697U,6436992U,3792888166U,201334784U,480U,0,0,0,0,2147483648U,10059U,0,0,1024U,0,0,0,0,1216348160U,34U,0,0,14U,0,0,0,0,575176704U,0,0,67108864U,0,0,0,0,0,2902912U,0,0,201326592U,3758489600U,31459073U,503390236U,65608U,2098176U,0,0,3225157920U,2043805697U,2099463U,33562633U,672137504U,256U,8196U,0,536870912U,2098177U,21627392U,151117833U,3759800800U,1576961U,8193U,64U,0,31457280U,57372U,252148674U,537460992U,18878976U,16787472U,1073741824U,0,0,536936448U,1375732000U,590858U,2099457U,302063634U,536936520U,8388608U,0,0,538968320U,197918721U,31459591U,201334791U,1208746272U,2100992U,32768U,0,0,12590081U,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2152730112U,35666944U,469901336U,4457024U,33554432U,6063584U,16777216U,4194304U,1057021966U,4213282U,604119072U,3223585312U,27650U,537001984U,16900U,229376U,268451840U,774439168U,268443864U,537133376U,54533122U,84U,3185574144U,238U,1984U,3758620736U,1256728832U,2148008000U,35652608U,1140998180U,0,1118109697U,0,1073741825U,16778240U,2152376320U,20972544U,604061732U,2151940672U,8390656U,4367616U,16777216U,4194304U,520159234U,35502U,402792508U,1075576960U,8406018U,3758129152U,98981U,65536U,503332864U,1048800U,0,0,0,0,0,0,0,0,4096U,0,0,0,0,0,0,0,0,15U,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1275592704U,1275068480U,2U,0,0,9408U,16460U,256U,61440U,1480736256U,38928384U,0,0,536870912U,1107296293U,1048664U,8193U,144U,4514313U,479744U,0,0,1965031424U,1155661824U,16783360U,2415919200U,16777216U,17474U,606U,0,0,2482176U,4473344U,4228366588U,9437184U,1107296256U,1375731780U,2U,0,0,9504U,402670658U,6292352U,36864U,1166810880U,206700544U,0,0,536870912U,2348810437U,1048645U,8193U,4194544U,16U };
+    for (Bit32u p = 0; p != 59 * 280; p++)
+    {
+        if (!(keyboard_letters[p >> 5] & (1 << (p & 31)))) continue;
+        int lx = (int)((oskx + (p % 280)) * fx), ly = (int)((osky + 1 + (p / 280)) * fy);
+        for (int y = ly; y != ly + thicknessy; y++)
+            for (int x = lx; x != lx + thickness; x++)
+                *(buffer + y * doswidth + x) = 0xFFFFFFFF;
+    }
+
+    // Draw white mouse cursor with black outline
+    for (Bit32u i = 0; i != 9; i++)
+    {
+        Bit32u n = (i < 4 ? i : (i < 8 ? i + 1 : 4)), x = (Bit32u)cX + (n % 3) - 1, y = (Bit32u)cY + (n / 3) - 1, ccol = (n == 4 ? 0xFFFFFFFF : 0xFF000000);
+        for (Bit32u c = 0; c != (Bit32u)(8 * fx); c++)
+        {
+            *(buffer + (y + c) * doswidth + (x)) = ccol;
+            if (x + c >= doswidth) continue;
+            *(buffer + (y)*doswidth + (x + c)) = ccol;
+            *(buffer + (y + c) * doswidth + (x + c)) = ccol;
+        }
+    }
+}
+
+#include "../../neil_vars.h"
+
+extern struct NeilButtons neilbuttons;
+
+int lastAKey = false;
+extern int neilMouseX;
+extern int neilMouseY;
+bool globalOnscreenKeyboard = false;
+
+void onscreenkeyboard_input()
+{
+    osk.dx += neilMouseX / 2.f; 
+    osk.dy += neilMouseY / 2.f;
+
+    if (neilbuttons.aKey != lastAKey)
+    {
+        lastAKey = neilbuttons.aKey;
+
+        if (neilbuttons.aKey)
+        {
+            if (osk.pressed_key == KBD_NONE && osk.hovered_key != KBD_NONE)
+            {
+                if (osk.held[osk.hovered_key])
+                {
+                    osk.held[osk.hovered_key] = false;
+                    KEYBOARD_AddKey(osk.hovered_key, false);
+                }
+                else if (osk.hovered_key >= KBD_leftalt && osk.hovered_key <= KBD_rightshift)
+                {
+                    osk.held[osk.hovered_key] = true;
+                    KEYBOARD_AddKey(osk.hovered_key, true);
+                }
+                else
+                {
+                    osk.pressed_time = SDL_GetTicks();
+                    osk.pressed_key = osk.hovered_key;
+                    KEYBOARD_AddKey(osk.pressed_key, true);
+                }
+            }
+        }
+        else
+        {
+            KEYBOARD_AddKey(osk.pressed_key, false);
+            osk.pressed_key = KBD_NONE;
+        }
+    }
+
+}
+
+extern bool showOverlay;
+void drawOverlay();
+void neil_draw_all_text();
+
+void neil_copy_back_buffer()
+{
+    //swap b and r
+    bool swap_b_r = vga.mode == M_LIN16 || vga.mode == M_LIN24 || vga.mode == M_LIN32;
+    unsigned char* scan;
+    scan = (unsigned char*)sdl.surface->pixels;
+
+    int surfaceWidth = sdl.surface->w;
+    int surfaceHeight = sdl.surface->h;
+    int surfacePitch = sdl.surface->pitch;
+    int bpp = sdl.surface->format->BytesPerPixel;
+    int scanPointer = 0;
+
+    if (swap_b_r)
+    {
+        for (int i = 0; i < surfaceHeight; i++)
+        {
+            for (int j = 0; j < surfaceWidth; j++)
+            {
+                neil_back_buffer[scanPointer] = scan[scanPointer + 2];
+                neil_back_buffer[scanPointer + 1] = scan[scanPointer + 1];
+                neil_back_buffer[scanPointer + 2] = scan[scanPointer];
+                neil_back_buffer[scanPointer + 3] = scan[scanPointer + 3];
+
+                scanPointer += 4;
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < surfaceHeight; i++)
+        {
+            for (int j = 0; j < surfaceWidth; j++)
+            {
+                neil_back_buffer[scanPointer] = scan[scanPointer];
+                neil_back_buffer[scanPointer + 1] = scan[scanPointer + 1];
+                neil_back_buffer[scanPointer + 2] = scan[scanPointer + 2];
+                neil_back_buffer[scanPointer + 3] = scan[scanPointer + 3];
+
+                scanPointer += 4;
+            }
+        }
+    }
+
+    if (globalOnscreenKeyboard)
+        draw_onscreen_keyboard((unsigned int*)neil_back_buffer);
+
+    if (showOverlay)
+    {
+        drawOverlay();
+    }
+
+    neil_draw_all_text();
+
+    neil_update_frame(neil_back_buffer);
+
 }
 
 void GFX_SetPalette(Bitu start,Bitu count,GFX_PalEntry * entries) {
@@ -3889,7 +4213,10 @@ static void GUI_StartUp() {
         GFX_SetResizeable(true);
         if (!GFX_SetSDLSurfaceWindow(640,400))
             E_Exit("Could not initialize video: %s",SDL_GetError());
+// NEIL - for some reason on windows this breaks everything
+#ifdef C_EMSCRIPTEN
         sdl.surface = SDL_GetWindowSurface(sdl.window);
+#endif
     }
     //SDL_Rect splash_rect=GFX_GetSDLSurfaceSubwindowDims(640,400);
     sdl.desktop.pixelFormat = SDL_GetWindowPixelFormat(sdl.window);
@@ -4206,10 +4533,7 @@ static void HandleVideoResize(void * event) {
 
 extern unsigned int mouse_notify_mode;
 
-bool user_cursor_locked = false;
-MOUSE_EMULATION user_cursor_emulation = MOUSE_EMULATION_NEVER;
-int user_cursor_x = 0,user_cursor_y = 0;
-int user_cursor_sw = 640,user_cursor_sh = 480;
+
 
 #if DOSBOXMENU_TYPE == DOSBOXMENU_SDLDRAW /* SDL drawn menus */
 void GFX_SDLMenuTrackHover(DOSBoxMenu &menu,DOSBoxMenu::item_handle_t item_id) {
@@ -5409,58 +5733,8 @@ bool gfx_in_mapper = false;
 #define DB_POLLSKIP 1
 #endif
 
-
-
-extern SDL_Rect rect;
-
-// Framerate control:
-Uint32 frameStart, frameTime;
-const int FPS   = 60;
-const int DELAY = 1000.0f / FPS;
-int current_fps = 0;
-int current_fps_counter = 0;
 Uint32 current_frameStart;
 
-void limitFPS()
-{
-    // Wait to mantain framerate:
-    // frameTime = SDL_GetTicks() - frameStart;
-    // if (frameTime < DELAY)
-	// {
-	// 	#ifndef __EMSCRIPTEN__
-	// 	SDL_Delay((int)(DELAY - frameTime));
-	// 	#endif
-	// }
-
-	//in async version, it seems like we don't need to 
-	//yeild to the DOM thread. happens automatically?
-	// #ifdef __EMSCRIPTEN__
-	// #ifndef PERFORMANCE 
-	// while(fpsAudioRemaining > 5000)
-	// {
-	// 	emscripten_sleep(0);
-	// }
-	// #endif	
-	// #endif
-	
-
-    //calculate FPS
-    current_fps_counter++;
-    if (current_frameStart + 1000.0f < SDL_GetTicks())
-    {
-        current_fps = current_fps_counter;
-        current_fps_counter = 0;
-        current_frameStart = SDL_GetTicks();
-
-		//for debugging
-		sprintf(fps_text,"CPU: %d ",cycleCounterNeil); 
-        frameCounter = 0;
-    }
-
-	//sprintf(fps_text, "MousePlane: %f Axis0: %d Move: %f", mousePlane, neilbuttons.axis0, mouseJoyMoveX);
-
-	//sprintf(fps_text, "Global %d MouseX %d MouseY %d Pressed %d", global_joypadmouse, mouseX, mouseY, mousePressed);
-}
 
 #ifdef __EMSCRIPTEN__
 #include <SDL2/SDL.h>
@@ -5473,91 +5747,9 @@ void limitFPS()
 // #include <SDL_image.h>
 #endif
 
-extern SDL_Color fontcolor;
-extern TTF_Font* font;
-
-
-void drawText(const char* text, int x, int y, SDL_Color color)
-{
-    SDL_Surface* sf = TTF_RenderText_Solid(font, text, color);
-    //SDL_Texture* fontTexture = SDL_CreateTextureFromSurface(renderer, sf);
-    //int texW = 0;
-    //int texH = 0;
-    //SDL_QueryTexture(fontTexture, NULL, NULL, &texW, &texH);
-    //SDL_Rect dstrect = { x, y, texW, texH };
-    //SDL_RenderCopy(renderer, fontTexture, nullptr, &dstrect);
-
-    unsigned char* scan;
-    scan = (unsigned char*)sdl.surface->pixels;
-
-    int surfaceWidth = sf->w;
-    int surfaceHeight = sf->h;
-    int surfacePitch = sf->pitch;
-    int bpp = sf->format->BytesPerPixel;
-    int startingY = y;
-    int scanPointer = (sdl.surface->pitch) * startingY;
-
-    for (int i = 0; i < surfaceHeight; i++)
-    {
-        scanPointer += x * 4;
-        for (int j = 0; j < surfaceWidth; j++)
-        {
-            int smurf = 0;
-
-            Uint8* pixelPointer = (Uint8*)sf->pixels + i * surfacePitch + j * bpp;
-            Uint8 pixel = pixelPointer[0];
-            Uint8 R = (Uint8)((pixel & 0xE0) >> 5);
-            Uint8 G = (Uint8)((pixel & 0x1C) >> 2);
-            Uint8 B = (Uint8)(pixel & 0x03);
-
-            if (pixel == 1)
-            {
-                R = 255;
-                G = 255;
-                B = 255;
-            }
-
-            // move this into the if statement above this
-            // to remove the black border
-            scan[scanPointer] = R;
-            scan[scanPointer + 1] = G;
-            scan[scanPointer + 2] = B;
-            scan[scanPointer + 3] = 255;
-
-            scanPointer += 4;
-        }
-
-        scanPointer = (sdl.surface->pitch) * (startingY+i);
-    }
-
-
-
-    SDL_FreeSurface(sf);
-
-
-    //if we don't destroy this you will see in 
-    //windows task manager the memory will keep growing
-    //SDL_DestroyTexture(fontTexture);
-}
-
 void menu_update_autocycle(void);
 
-void neil_draw_all_text()
-{
-    if (showFPS)
-    {
-        int currWidth, currHeight;
-        SDL_GetWindowSize(sdl.window, &currWidth, &currHeight);
-        drawText(fps_text, 20, 20, fontcolor);
-    }
-    if (toastTimer > 0)
-    {
-        toastTimer--;
-        int currWidth, currHeight;
-        SDL_GetWindowSize(sdl.window, &currWidth, &currHeight);
-        drawText(toast_message, 20, 50, fontcolor);
-    }
-}
+
 
 static char empty_char = 0;
 static char* empty_string = &empty_char;
@@ -5599,142 +5791,8 @@ struct DtaResult {
 extern DOS_Block dos;
 void runImgmount(const char* str);
 
-void neilMain()
-{
-    Uint8* keyboardState = (Uint8*)SDL_GetKeyboardState(NULL);
+void GFX_Events_OLD() {
 
-    //TEMPORARY FOR DEBUGGING
-#ifdef _WIN32
-        //upPressed = false;
-        //if (keyboardState[SDL_SCANCODE_A]) upPressed = true;
-        //if (upPressed && upLast == false) 
-        //{ 
-        //    printf("A pressed\n"); 
-        //    loadFloppyRequested = true;
-        //}
-        //upLast = upPressed;
-
-        //downPressed = false;
-        //if (keyboardState[SDL_SCANCODE_S]) downPressed = true;
-        //if (downPressed && downLast == false) 
-        //{ 
-        //    sprintf(change_floppy_filename, "DISK02.IMG");
-        //    changeFloppyRequested = true;
-        //    printf("S pressed\n"); 
-        //}
-        //downLast = downPressed;
-#endif
-
-    if (updateCpuRequested)
-    {
-        updateCpuRequested = false;
-
-        Section_line* section = static_cast<Section_line*>(control->GetSection("cpu"));
-
-        section->HandleInputline(cpu_cycles_update);
-
-        menu_update_autocycle();
-
-        printf("cpu updated %s\n",cpu_cycles_update);
-    }
-    if (loadFloppyRequested)
-    {
-        loadFloppyRequested = false;
-        runImgmount(load_floppy_filename);
-    }
-    if (changeFloppyRequested)
-    {
-        changeFloppyRequested = false;
-        char drive = 'A';
-        std::vector<std::string> options;
-        fatDrive* newDrive = new fatDrive(change_floppy_filename, 0, 0, 0, 0, options);
-        if (newDrive) 
-        {
-            DriveManager::ChangeDisk(drive - 'A', newDrive);
-        }
-    }
-    if (changedIsoRequested)
-    {
-        changedIsoRequested = false;
-        isoDrive *cdrom = dynamic_cast<isoDrive*>(Drives['D'-'A']);
-        DOS_Drive *newDrive = NULL;
-        if (cdrom && dos_kernel_disabled) {
-            cdrom->setFileName(change_iso_filename);
-        } else {
-            std::vector<std::string> options;
-            uint8_t mediaid = 0xF8;
-            int error = -1;
-            newDrive = new isoDrive('D', change_iso_filename, mediaid, error, options);
-            cdrom = dynamic_cast<isoDrive*>(newDrive);
-        }
-        if (cdrom) DriveManager::ChangeDisk('D'-'A', cdrom);
-    }
-    if (togglePauseRequested)
-    {
-        togglePauseRequested = false;
-        PauseDOSBox(true);
-    }
-    if (saveStateRequested)
-    {
-        saveStateRequested = false;
-        SaveState::instance().save(0);
-    }
-    if (loadStateRequested)
-    {
-        loadStateRequested = false;
-        SaveState::instance().load(0);
-    }
-    if (ctrlAltDelRequested)
-    {
-        ctrlAltDelRequested = false;
-        SendKey("sendkey_cad");
-    }
-    if (exportFilesRequested)
-    {
-        exportFilesRequested = false;
-
-        Section_line* section = static_cast<Section_line*>(control->GetSection("autoexec"));
-
-        char mountCommands[1000];
-
-        sprintf(mountCommands, "mount e .\r\n%s%sc:\r\ncd export\r\nzip -r E:\\export.zip *.*\r\necho DONE\r\n",
-            fat_drive_mount, iso_drive_mount);
-
-        section->data = mountCommands;
-
-        //trigger a shutdown of the computer
-        throw int(0);
-    }
-    if (exitToDosRequested)
-    {
-        exitToDosRequested = false;
-        
-        //trigger a shutdown of the computer
-        throw int(0);
-    }
-    if (requestSendKey)
-    {
-        requestSendKey = false;
-        KEYBOARD_AddKey((KBD_KEYS)keyRequested, true);
-        KEYBOARD_AddKey((KBD_KEYS)keyRequested, false);
-    }
-    if (requestSendCommand)
-    {
-        requestSendCommand = false;
-        
-        // press enter to get it to start parsing our commands
-        KEYBOARD_AddKey((KBD_KEYS)KBD_enter, true);
-        KEYBOARD_AddKey((KBD_KEYS)KBD_enter, false);
-    }
-
-    limitFPS();
-
-    frameStart = SDL_GetTicks();
-}
-
-void GFX_Events() {
-
-    neilMain();
     CheckMapperKeyboardLayout();
 #if defined(C_SDL2) /* SDL 2.x---------------------------------- */
     //Don't poll too often. This can be heavy on the OS, especially Macs.
@@ -9089,10 +9147,10 @@ int main_sdl(int argc, char* argv[]) {
 #endif
 
         /* -- SDL init */
-        if (SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) >= 0)
+        if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_NOPARACHUTE) >= 0)
             sdl.inited = true;
         else
-            E_Exit("Can't init SDL %s",SDL_GetError());
+            E_Exit("Can't init SDL %s", SDL_GetError());
 #if defined(C_SDL2)
         SDL_version sdl_version;
         SDL_GetVersion(&sdl_version);
@@ -10254,11 +10312,377 @@ void set_autoexec_internal()
     printf("autoexec cleared\n");
 }
 
-extern bool neil_16_bit_color_fix;
-extern bool neil_always_use_backbuffer;
 
+uint32_t lastNeilEventLoop = SDL_GetTicks();
+int current_frame_counter = 0;
+bool redrawNextFrame = false;
+
+void neil_draw_all_text()
+{
+    if (toastTimer > 0)
+    {
+        ezd_fill_rect(hDib, 0, 27, 100, 54, 0xFF000000);
+        ezd_text(hDib, hFont, toast_message, -1, 20, 36, 0xffffffff);
+    }
+
+    if (showFPS)
+    {
+        ezd_fill_rect(hDib, 0, 0, 100, 27, 0xFF000000);
+        ezd_text(hDib, hFont, fps_text, -1, 20, 10, 0xffffffff);
+    }
+
+    
+}
+
+extern char menuItems[12][30];
+extern int selectedMenuItem;
+
+void drawOverlay()
+{
+    int x = 50;
+    int y = 50;
+    int x2 = doswidth - 50;
+    int y2 = dosheight - 50;
+
+    ezd_fill_rect(hDib, x, y, x2, y2, 0xFF00FF00);
+
+    int menuItemsCount = sizeof(menuItems) / 30;
+    int startX = 200;
+    int startY = y + 30;
+
+    int spacer = (dosheight - 160) / (menuItemsCount - 1);
+
+    for (int i = 0; i < menuItemsCount; i++)
+    {
+        int currentY = startY + (i * spacer);
+        if (i == selectedMenuItem)
+        {
+            ezd_text(hDib, hFont, ">", -1, startX - 15, currentY-2, 0xFF0000FF);
+
+        }
+        ezd_text(hDib, hFont, menuItems[i], -1, startX, currentY, 0xFF0000FF);
+
+    }
+}
+
+
+extern cpu_cycles_count_t CPU_Cycles;
+extern cpu_cycles_count_t CPU_CycleLeft;
+extern cpu_cycles_count_t CPU_CycleMax;
+extern cpu_cycles_count_t CPU_OldCycleMax;
+extern cpu_cycles_count_t CPU_CyclePercUsed;
+extern cpu_cycles_count_t CPU_CycleLimit ;
+extern cpu_cycles_count_t CPU_CycleUp;
+extern cpu_cycles_count_t CPU_CycleDown;
+extern cpu_cycles_count_t CPU_CyclesSet;
+extern cpu_cycles_count_t CPU_IODelayRemoved;
+
+
+
+extern char cpu_cycles_update[250];
+bool forceSoftwareReset = false;
+void menu_update_autocycle(void);
+void runImgmount(const char* str);
+
+void neil_check_requested()
+{
+    if (updateCpuRequested)
+    {
+        updateCpuRequested = false;
+
+        Section_line* section = static_cast<Section_line*>(control->GetSection("cpu"));
+
+        section->HandleInputline(cpu_cycles_update);
+
+        menu_update_autocycle();
+
+        printf("cpu updated %s\n", cpu_cycles_update);
+    }
+    if (loadFloppyRequested)
+    {
+        loadFloppyRequested = false;
+        runImgmount(load_floppy_filename);
+    }
+    if (changeFloppyRequested)
+    {
+        changeFloppyRequested = false;
+        char drive = 'A';
+        std::vector<std::string> options;
+        fatDrive* newDrive = new fatDrive(change_floppy_filename, 0, 0, 0, 0, options);
+        if (newDrive)
+        {
+            DriveManager::ChangeDisk(drive - 'A', newDrive);
+        }
+    }
+    if (changedIsoRequested)
+    {
+        changedIsoRequested = false;
+        isoDrive* cdrom = dynamic_cast<isoDrive*>(Drives['D' - 'A']);
+        DOS_Drive* newDrive = NULL;
+        if (cdrom && dos_kernel_disabled) {
+            cdrom->setFileName(change_iso_filename);
+        }
+        else {
+            std::vector<std::string> options;
+            uint8_t mediaid = 0xF8;
+            int error = -1;
+            newDrive = new isoDrive('D', change_iso_filename, mediaid, error, options);
+            cdrom = dynamic_cast<isoDrive*>(newDrive);
+        }
+        if (cdrom) DriveManager::ChangeDisk('D' - 'A', cdrom);
+    }
+    if (saveStateRequested)
+    {
+        saveStateRequested = false;
+        SaveState::instance().save(0);
+    }
+    if (loadStateRequested)
+    {
+        loadStateRequested = false;
+        SaveState::instance().load(0);
+    }
+    if (ctrlAltDelRequested)
+    {
+        ctrlAltDelRequested = false;
+        SendKey("sendkey_cad");
+    }
+    if (exportFilesRequested)
+    {
+        exportFilesRequested = false;
+
+        Section_line* section = static_cast<Section_line*>(control->GetSection("autoexec"));
+
+        char mountCommands[1000];
+
+        sprintf(mountCommands, "mount e .\r\n%s%sc:\r\ncd export\r\nzip -r E:\\export.zip *.*\r\necho DONE\r\n",
+            fat_drive_mount, iso_drive_mount);
+
+        section->data = mountCommands;
+
+        //trigger a shutdown of the computer
+        throw int(0);
+    }
+    if (exitToDosRequested)
+    {
+        exitToDosRequested = false;
+
+        //trigger a shutdown of the computer
+        throw int(0);
+    }
+    if (forceSoftwareReset)
+    {
+        forceSoftwareReset = false;
+
+        //trigger a reset of the computer
+        throw int(3);
+    }
+
+    if (requestSendKey)
+    {
+        requestSendKey = false;
+        KEYBOARD_AddKey((KBD_KEYS)keyRequested, true);
+        KEYBOARD_AddKey((KBD_KEYS)keyRequested, false);
+    }
+    if (requestSendCommand)
+    {
+        requestSendCommand = false;
+
+        // press enter to get it to start parsing our commands
+        KEYBOARD_AddKey((KBD_KEYS)KBD_enter, true);
+        KEYBOARD_AddKey((KBD_KEYS)KBD_enter, false);
+    }
+}
+
+void neil_event_loop();
+void processOverlay();
+void neil_mouse_events();
+extern float mouseSensitivity;
+
+void GFX_Events() {
+
+    // mouse movements get processed immediately
+    neil_mouse_events();
+
+    // all other events get processed 60 times a second
+    uint32_t now = SDL_GetTicks();
+    auto diff = now - lastNeilEventLoop;
+    if (diff >= 16)
+    {
+
+        if (toastTimer > 0)
+        {
+            toastTimer--;
+        }
+        //process keyboard, mouse buttons, and axes
+        neil_event_loop();
+      
+        processOverlay();
+        neil_check_requested();
+
+        if (globalOnscreenKeyboard)
+        {
+            onscreenkeyboard_input();   
+        }
+
+        if (globalOnscreenKeyboard || showOverlay || redrawNextFrame || toastTimer > 0)
+        {
+            //when the keyboard is on we have to redraw every frame since 
+            //they could have potentially changed something
+            neil_copy_back_buffer();
+
+            redrawNextFrame = false;
+        }
+
+#ifdef WIN32
+        void mainRender();
+        mainRender();
+#endif
+        
+        current_frame_counter++;
+        lastNeilEventLoop = SDL_GetTicks();
+    }
+
+    if (current_frameStart + 1000.0f < SDL_GetTicks())
+    {
+        current_frameStart = SDL_GetTicks();
+        sprintf(fps_text, "CPU: %d ", CPU_CycleMax);
+
+        current_frame_counter = 0;
+    }
+}
+
+void readConfig();
+void init_myinput();
+
+#ifdef C_EMSCRIPTEN
+int main(int argc, char* argv[])
+{
+    void runDosbox();
+    runDosbox();
+}
+#endif
+
+void initEZD()
+{
+    // Create image with providing my own buffer
+    hDib = ezd_initialize(user_header, sizeof(user_header), doswidth, -dosheight, 32,
+        EZD_FLAG_USER_IMAGE_BUFFER);
+
+    // Set custom image buffer
+    if (!ezd_set_image_buffer(hDib, neil_back_buffer, doswidth * dosheight * 4))
+    {
+        printf("error initializing ezd buffer\n");
+    }
+
+}
+
+void runDosbox()
+{
+    readConfig();
+    init_myinput();
+
+    sprintf(fps_text, "loading...");
+    sprintf(fat_drive_mount, "");
+    sprintf(iso_drive_mount, "");
+    sprintf(neil_autoexec_additional, "");
+    sprintf(toast_message, "");
+
+    initEZD();
+
+	// // Load medium size font (large doesn't work)
+	hFont = ezd_load_font(EZD_FONT_TYPE_MEDIUM, 0, 0);
+
+#ifdef C_EMSCRIPTEN
+  jsdos::initAsyncify();
+#endif
+
+  main_sdl(0, nullptr);
+  
+  //it should never reach this point
+  printf("exited main sdl\n");
+}
+
+//STUBS
+
+void VOODOO_Destroy(Section* /*sec*/) {}
+void VOODOO_OnPowerOn(Section* /*sec*/) {}
+
+#include <midi.h>
+void MIDI_ListHandler(Program* caller, const char* name) {}
+DB_Midi midi;
+void MIDI_RawOutByte(uint8_t data) {}
+bool MIDI_Available(void) {
+	return false;
+}
+void MIDI_GUI_OnSectionPropChange(Section* x) {}
+std::string sffile = "Not available";
+
+void fmport_a_pic_event(Bitu val) {
+}
+
+void fmport_b_pic_event(Bitu val) {
+}
+
+void* fmport_a_pic_event_PIC_Event = (void*)((uintptr_t)fmport_a_pic_event);
+void* fmport_b_pic_event_PIC_Event = (void*)((uintptr_t)fmport_b_pic_event);
+
+bool log_int21 = false;
+bool log_fileio = false;
+int log_dev_con = 0;
+
+void VOODOO_Init() {}
+void MIDI_Init(void) {}
+bool Voodoo_OGL_Active() { return false;  }
+void Voodoo_Output_Enable(bool x) {}
+void LOG::EarlyInit(void) {}
+void LOG::SetupConfigSection(void) {}
+
+namespace ptrop {
+	void self_test(void) {}
+}
+namespace bitop {
+	void self_test(void) {}
+}
+
+void LOG::Init(void) {}
+void IMFC_Init(void) {}
+void LOG::Exit(void) {}
+
+bool PC98_FM_SoundBios_Enabled(void) {
+    return false;
+}
+
+void DEBUG_ShowMsg(char const* format, ...)
+{
+	static char buf[1024];
+	va_list ap;
+	va_start(ap, format);
+	vsnprintf(buf, sizeof(buf), format, ap);
+	va_end(ap);
+	printf("DEBUG_ShowMsg: %s\n", buf);
+}
 
 extern "C" {
+
+    void neil_toggle_onscreenkeyboard()
+    {
+        globalOnscreenKeyboard = !globalOnscreenKeyboard;
+        redrawNextFrame = true;
+        printf("globalOnscreenKeyboard %d\n", globalOnscreenKeyboard);
+    }
+
+    void neil_decrease_mouse_sensitivity()
+    {
+        if (mouseSensitivity > 0.5f)
+            mouseSensitivity -= 0.5f;
+        printf("Mouse speed %f\n", mouseSensitivity);
+    }
+
+    void neil_increase_mouse_sensitivity()
+    {
+        mouseSensitivity += 0.5f;
+        printf("Mouse speed %f\n", mouseSensitivity);
+    }
 
     void neil_toggle_fps()
     {
@@ -10280,9 +10704,15 @@ extern "C" {
         exitToDosRequested = true;
     }
 
+    void neil_force_reset()
+    {
+        forceSoftwareReset = true;
+    }
+
     void neil_toggle_pause()
     {
-        togglePauseRequested = true;
+        printf("neil_toggle_pause\n");
+        togglePauseRequested = !togglePauseRequested;
     }
 
     void neil_update_cpu(char* name)
@@ -10290,6 +10720,7 @@ extern "C" {
         sprintf(cpu_cycles_update, name);
         updateCpuRequested = true;
     }
+
     void neil_send_ctrlaltdel()
     {
         ctrlAltDelRequested = true;
@@ -10301,23 +10732,12 @@ extern "C" {
         set_autoexec_internal();
     }
 
-    void neil_toggle_16_bit_color_fix()
-    {
-        neil_16_bit_color_fix = !neil_16_bit_color_fix;
-    }
-    
-    void neil_toggle_always_use_backbuffer()
-    {
-        neil_always_use_backbuffer = !neil_always_use_backbuffer;
-        printf("neil_toggle_always_use_backbuffer: %d\n", neil_always_use_backbuffer);
-    }
-    
     void neil_show_toast(char* message)
     {
         toastTimer = 30;
         sprintf(toast_message, message);
     }
-    
+
     void neil_change_iso(char* filename)
     {
         sprintf(change_iso_filename, filename);

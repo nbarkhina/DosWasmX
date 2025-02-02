@@ -1,6 +1,7 @@
 MAKEFLAGS += --no-builtin-rules
 
 CFILES := \
+    ezdib.c \
     minizip/miniunz.c \
     minizip/minizip.c \
     minizip/mztools.c \
@@ -15,7 +16,6 @@ CFILES := \
     src/hardware/RetroWaveLib/RetroWave.c
 
 CPPFILES := \
-    main.cpp \
     src/builtin/25_com.cpp \
     src/builtin/28_com.cpp \
     src/builtin/50_com.cpp \
@@ -86,12 +86,13 @@ CPPFILES := \
     src/dos/drive_overlay.cpp \
     src/dos/drive_physfs.cpp \
     src/dos/drive_virtual.cpp \
+    src/dos/jsdos-asyncify.cpp \
     src/fpu/fpu.cpp \
     src/gui/menu.cpp \
     src/gui/menu_callback.cpp \
     src/gui/render.cpp \
     src/gui/render_scalers.cpp \
-    src/gui/sdlmain.cpp \
+	src/gui/sdlmain.cpp \
     src/gui/sdl_gui.cpp \
     src/gui/sdl_mapper.cpp \
     src/hardware/8255.cpp \
@@ -231,7 +232,8 @@ CPPFILES := \
     src/shell/shell.cpp \
     src/shell/shell_batch.cpp \
     src/shell/shell_cmds.cpp \
-    src/shell/shell_misc.cpp
+    src/shell/shell_misc.cpp \
+    myinput.cpp
 
 FILES := $(patsubst %.c,%.o,$(CFILES)) $(patsubst %.cpp,%.o,$(CPPFILES))
 
@@ -239,22 +241,32 @@ MYFLAGS := \
     -I./include \
     -I./zlib \
 	-D__LIBRETRO__ \
+    -DC_EMSCRIPTEN \
+    -DEMSCRIPTEN \
     -DDISABLE_DYNAREC \
-	-Wno-macro-redefined \
+    -w \
+	-Werror=return-type \
+	-fsigned-char \
 	-O3 \
+	-Oz \
+	-fwasm-exceptions \
     -s USE_SDL=2 \
-    -std=c++14 \
-	-fwasm-exceptions
+    -std=c++14
 
 MYFLAGSC := \
     -I./include \
     -I./zlib \
 	-D__LIBRETRO__ \
+    -DC_EMSCRIPTEN \
+    -DEMSCRIPTEN \
     -DDISABLE_DYNAREC \
-	-Wno-macro-redefined \
+    -w \
+	-Werror=return-type \
+	-fsigned-char \
 	-O3 \
-    -s USE_SDL=2 \
-	-fwasm-exceptions
+    -Oz \
+	-fwasm-exceptions \
+    -s USE_SDL=2
 
 all: main.js
 	mv main.js ../dist/main.js
@@ -262,29 +274,58 @@ all: main.js
 
 main.js: $(FILES)
 	emcc -o $@ $(FILES) \
-	-s USE_ZLIB=1 \
-    -s ASYNCIFY \
-    -std=c++14 \
-	-fwasm-exceptions \
-	-s TOTAL_MEMORY=536870912 \
-    -s ASYNCIFY_STACK_SIZE=65535 \
-	--use-preload-plugins \
-	-s ASSERTIONS=0 \
-	-s LLD_REPORT_UNDEFINED \
+	-w \
+	-Werror=return-type \
+	-fsigned-char \
 	-O3 \
-	-s EXIT_RUNTIME=0 \
-	-s EXTRA_EXPORTED_RUNTIME_METHODS="['callMain','cwrap']" \
-	-s EXPORTED_FUNCTIONS="['_main','_neilGetSoundBufferResampledAddress', \
-    '_neil_serialize','_neil_unserialize','_neilGetAudioWritePosition', \
-    '_neil_toggle_fps','_neil_export_files','_neil_show_toast', \
-    '_neil_clear_autoexec','_neil_exit_to_dos','_neil_send_key', \
-    '_neil_toggle_pause','_neil_update_cpu','_neil_send_ctrlaltdel', \
-    '_neil_toggle_16_bit_color_fix','_neil_update_autoexec_additional', \
-    '_neil_toggle_always_use_backbuffer','_neil_change_iso','_neil_send_dos_commands', \
-    '_neil_load_floppy','_neil_change_floppy', \
-    '_neil_turbo']" \
-	-s INVOKE_RUN=0 \
-    -sUSE_SDL=2 -sUSE_SDL_TTF=2
+	-DNDEBUG \
+    -Oz \
+	-flto=thin \
+	-Wl,-u,htons \
+	-Wl,-u,ntohs \
+	-sTOTAL_STACK=1MB \
+	-sMALLOC=emmalloc \
+	-sASSERTIONS=0 \
+	-sSAFE_HEAP=0 \
+	-sTOTAL_MEMORY=134217728 \
+	-sALLOW_MEMORY_GROWTH=1 \
+	-sEXIT_RUNTIME=0 \
+	-sINVOKE_RUN=0 \
+	"-sEXTRA_EXPORTED_RUNTIME_METHODS=['addRunDependency', 'removeRunDependency','FS', \
+	'FS_createPath', 'FS_createPreloadedFile', 'FS_createDataFile', 'lengthBytesUTF8', \
+	'stringToUTF8', 'UTF16ToString', 'UTF8ToString', 'callMain', 'err', 'cwrap']" \
+	"-sEXPORTED_FUNCTIONS=['_main', '_malloc', '_free', '_abort', '_neilTurboMode', \
+	'_neil_update_autoexec_additional', \
+	'_neil_show_toast', \
+	'_neil_send_key', \
+	'_neil_change_iso', \
+	'_neil_change_floppy', \
+	'_neil_load_floppy', \
+	'_neil_send_dos_commands', \
+	'_neil_export_files', \
+	'_neil_clear_autoexec', \
+	'_neil_exit_to_dos', \
+	'_neil_toggle_pause', \
+	'_neil_send_ctrlaltdel', \
+	'_neil_force_reset', \
+    '_neil_send_dos_controls', \
+    '_neil_send_mouse_movement', \
+    '_neil_toggle_fps', \
+    '_neil_toggle_onscreenkeyboard', \
+    '_neil_decrease_mouse_sensitivity', \
+    '_neil_increase_mouse_sensitivity', \
+    '_neilGetSoundBufferResampledAddress', \
+    '_neilGetAudioWritePosition', \
+    '_neil_serialize', \
+    '_neil_unserialize', \
+	'_neilNormalMode', '_neilSpeedUp', '_neilSlowDown', '_neil_update_cpu']" \
+	-sERROR_ON_UNDEFINED_SYMBOLS=1 \
+	-fwasm-exceptions \
+	-sUSE_ZLIB=1 \
+	-sUSE_SDL=2 \
+	-sASYNCIFY=1 \
+	"-sASYNCIFY_IMPORTS=['syncSleep']" \
+	-sASYNCIFY_WHITELIST=@asyncify.txt
 
 %.o : %.cpp
 	emcc -c $< -o $@ \

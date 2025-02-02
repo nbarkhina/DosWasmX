@@ -162,7 +162,7 @@ static struct {
     CCaptionButton*                             dbg2;
     CCaptionButton*                             dbg1;
     CBindButton*                                save;
-    CBindButton*                                exit;   
+    CBindButton*                                exit;
     CBindButton*                                cap;
     CBindButton*                                add;
     CBindButton*                                del;
@@ -408,7 +408,7 @@ public:
     //! \brief Deactivate the event
     virtual void DeActivateEvent(bool ev_trigger)=0;
 
-    //! \brief Deactivate all bindings 
+    //! \brief Deactivate all bindings
     void DeActivateAll(void);
 
     //! \brief Set the value of the event (such as joystick position)
@@ -902,7 +902,7 @@ static SDLKey sdlkey_map[]={
     /*60-64*/ SDLK_F5, SDLK_F6, SDLK_F7, SDLK_F3, SDLK_F8,
     /*65-6A*/ SDLK_F9, SDLK_WORLD_17, SDLK_F11, SDLK_WORLD_18, SDLK_F13, SDLK_PAUSE /*==SDLK_F16*/,
     /*6B-70*/ SDLK_PRINT /*==SDLK_F14*/, Z, SDLK_F10, Z, SDLK_F12, Z,
-    /*71-72*/ SDLK_SCROLLOCK /*==SDLK_F15*/, SDLK_INSERT /*==SDLK_HELP*/, 
+    /*71-72*/ SDLK_SCROLLOCK /*==SDLK_F15*/, SDLK_INSERT /*==SDLK_HELP*/,
     /*73-77*/ SDLK_HOME, SDLK_PAGEUP, SDLK_DELETE, SDLK_F4, SDLK_END,
     /*78-7C*/ SDLK_F2, SDLK_PAGEDOWN, SDLK_F1, SDLK_LEFT, SDLK_RIGHT,
     /*7D-7E*/ SDLK_DOWN, SDLK_UP,
@@ -1321,7 +1321,7 @@ Bitu GetKeyCode(SDL_keysym keysym) {
                 break;
             default:
 #elif defined (__linux__)
-            switch(keysym.scancode) { // Workaround for some of the keys return incorrect virtual keycodes 
+            switch(keysym.scancode) { // Workaround for some of the keys return incorrect virtual keycodes
             //case 0x56:
             //    return SDLK_LESS;
             case 0x60:
@@ -1380,7 +1380,7 @@ Bitu GetKeyCode(SDL_keysym keysym) {
 #endif
         if (isJPkeyboard && (keysym.sym == 0 || keysym.sym == 0x5C) && (keysym.scancode == 0x7D)) return (Bitu)SDLK_WORLD_11; //FIXME: There's no SDLK code for that key! Re-use one of the world keys!
         /* what is ~ ` on American keyboards is "Hankaku" on Japanese keyboards. Same scan code. */
-		if (keysym.scancode == 0x29) return (Bitu) (isJPkeyboard ? SDLK_WORLD_12 : SDLK_BACKQUOTE); //if JP106 keyboard Hankaku else Backquote(grave)  
+		if (keysym.scancode == 0x29) return (Bitu) (isJPkeyboard ? SDLK_WORLD_12 : SDLK_BACKQUOTE); //if JP106 keyboard Hankaku else Backquote(grave)
         /* Muhenkan */
         if (isJPkeyboard && keysym.sym == 0 && keysym.scancode == 0x7B) return (Bitu)SDLK_WORLD_13;
         /* Henkan/Zenkouho */
@@ -1723,7 +1723,7 @@ public:
         // activate if we exceed user-defined deadzone
         const auto deadzone = GetJoystickDeadzone((int)this->GetJoystick(), (int)this->GetAxis(), this->GetPositive());
 
-        if (_value > deadzone && event->IsTrigger()) 
+        if (_value > deadzone && event->IsTrigger())
             _value = 25000 + 1;
 
         CBind::ActivateBind(_value, ev_trigger, skip_action);
@@ -1880,11 +1880,11 @@ public:
             bool pos=ConvDecWord(StripWord(buf)) > 0;
             bind=CreateAxisBind(ax,pos);
         } else if (!strcasecmp(type,"button")) {
-            Bitu but=(Bitu)ConvDecWord(StripWord(buf));           
+            Bitu but=(Bitu)ConvDecWord(StripWord(buf));
             bind=CreateButtonBind(but);
         } else if (!strcasecmp(type,"hat")) {
-            Bitu hat=(Bitu)ConvDecWord(StripWord(buf));           
-            uint8_t dir=(uint8_t)ConvDecWord(StripWord(buf));           
+            Bitu hat=(Bitu)ConvDecWord(StripWord(buf));
+            uint8_t dir=(uint8_t)ConvDecWord(StripWord(buf));
             bind=CreateHatBind(hat,dir);
         }
         return bind;
@@ -1986,7 +1986,7 @@ public:
                 old_button_state[i]=button_pressed[i];
             }
         }
-        
+
         int* axis_map = stick == 0 ? &joy1axes[0] : &joy2axes[0];
         for (i=0; i<axes; i++) {
             int i1 = axis_map[i];
@@ -2055,7 +2055,7 @@ private:
         return NULL;
     }
     CBind * CreateButtonBind(Bitu button) {
-        if (button<button_wrap) 
+        if (button<button_wrap)
             return new CJButtonBind(&button_lists[button],this,button);
         return NULL;
     }
@@ -2089,7 +2089,7 @@ private:
         auto deadzone = static_cast<float>(prop->Get_double(name));
         return deadzone;
     }
-    
+
     static float GetAxisResponse(int joystick, int thumbStick)
     {
         auto section = control->GetSection("joystick");
@@ -2218,7 +2218,7 @@ public:
         for (i=0; i<MAX_VJOY_BUTTONS; i++) {
             if (virtual_joysticks[0].button_pressed[i])
                 button_pressed[i % button_wrap]=true;
-            
+
         }
         for (i=0; i<emulated_buttons; i++) {
             if (autofire && (button_pressed[i]))
@@ -2301,7 +2301,7 @@ public:
         for (i=0; i<MAX_VJOY_BUTTONS; i++) {
             if (virtual_joysticks[0].button_pressed[i])
                 button_pressed[i % button_wrap]=true;
-            
+
         }
         for (i=0; i<emulated_buttons; i++) {
             if (autofire && (button_pressed[i]))
@@ -2491,7 +2491,7 @@ public:
         for (i=0; i<MAX_VJOY_BUTTONS; i++) {
             if (virtual_joysticks[0].button_pressed[i])
                 button_pressed[i % button_wrap]=true;
-            
+
         }
         for (i=0; i<6; i++) {
             if ((button_pressed[i]) && (bt_state>button_priority[i]))
@@ -2634,7 +2634,7 @@ public:
         return page;
     }
     void Enable(bool yes) {
-        enabled=yes; 
+        enabled=yes;
         mapper.redraw=true;
     }
     void SetInvert(bool inv) {
@@ -2751,9 +2751,9 @@ static std::vector<CEventButton *> ceventbuttons;
 
 class CEventButton : public CTextButton {
 public:
-    CEventButton(Bitu _x,Bitu _y,Bitu _dx,Bitu _dy,const char * _text,CEvent * _event) 
-    : CTextButton(_x,_y,_dx,_dy,_text)  { 
-        event=_event;   
+    CEventButton(Bitu _x,Bitu _y,Bitu _dx,Bitu _dy,const char * _text,CEvent * _event)
+    : CTextButton(_x,_y,_dx,_dy,_text)  {
+        event=_event;
     }
     virtual ~CEventButton() {}
     void BindColor(void) {
@@ -2804,19 +2804,19 @@ void CCaptionButton::Change(const char * format,...) {
     vsprintf(caption,format,msg);
     va_end(msg);
     mapper.redraw=true;
-}       
+}
 
 void RedrawMapperBindButton(CEvent *ev), RedrawMapperEventButtons();
 class CBindButton : public CTextButton {
-public: 
-    CBindButton(Bitu _x,Bitu _y,Bitu _dx,Bitu _dy,const char * _text,BB_Types _type) 
-    : CTextButton(_x,_y,_dx,_dy,_text)  { 
+public:
+    CBindButton(Bitu _x,Bitu _y,Bitu _dx,Bitu _dy,const char * _text,BB_Types _type)
+    : CTextButton(_x,_y,_dx,_dy,_text)  {
         type=_type;
     }
     virtual ~CBindButton() {}
     void ClickImpl(void) {
         switch (type) {
-        case BB_Add: 
+        case BB_Add:
             mapper.addbind=true;
             SetActiveBind(0);
             change_action_text(MSG_Get("PRESS_JOYSTICK_KEY"),CLR_RED);
@@ -2826,7 +2826,7 @@ public:
             if (mapper.abindit!=mapper.aevent->bindlist.end())  {
                 delete (*mapper.abindit);
                 mapper.abindit=mapper.aevent->bindlist.erase(mapper.abindit);
-                if (mapper.abindit==mapper.aevent->bindlist.end()) 
+                if (mapper.abindit==mapper.aevent->bindlist.end())
                     mapper.abindit=mapper.aevent->bindlist.begin();
             }
             if (mapper.abindit!=mapper.aevent->bindlist.end()) SetActiveBind(*(mapper.abindit));
@@ -2835,9 +2835,9 @@ public:
             break;
         case BB_Next:
             assert(mapper.aevent != NULL);
-            if (mapper.abindit!=mapper.aevent->bindlist.end()) 
+            if (mapper.abindit!=mapper.aevent->bindlist.end())
                 ++mapper.abindit;
-            if (mapper.abindit==mapper.aevent->bindlist.end()) 
+            if (mapper.abindit==mapper.aevent->bindlist.end())
                 mapper.abindit=mapper.aevent->bindlist.begin();
             SetActiveBind(*(mapper.abindit));
             break;
@@ -2854,7 +2854,7 @@ public:
         case BB_Save:
             MAPPER_SaveBinds();
             break;
-        case BB_Exit:   
+        case BB_Exit:
             mapper.exit=true;
             break;
         case BB_Capture:
@@ -2904,9 +2904,9 @@ protected:
 };
 
 class CCheckButton : public CTextButton {
-public: 
-    CCheckButton(Bitu _x,Bitu _y,Bitu _dx,Bitu _dy,const char * _text,BC_Types _type) 
-    : CTextButton(_x,_y,_dx,_dy,_text)  { 
+public:
+    CCheckButton(Bitu _x,Bitu _y,Bitu _dx,Bitu _dy,const char * _text,BC_Types _type)
+    : CTextButton(_x,_y,_dx,_dy,_text)  {
         type=_type;
     }
     virtual ~CCheckButton() {}
@@ -3120,7 +3120,7 @@ public:
     }
 
     virtual ~CJButtonEvent() {}
-    
+
     virtual void Active(bool pressed) {
         if (notify_button != NULL)
             notify_button->SetInvert(pressed);
@@ -3128,7 +3128,7 @@ public:
         virtual_joysticks[stick].button_pressed[button]=pressed;
         active=pressed;
     }
-    
+
     //! \brief Associate this object with a text button in the mapper UI
     void notifybutton(CTextButton *n) {
         notify_button = n;
@@ -3254,7 +3254,7 @@ public:
         case MK_nothing: *buf = 0; return;
         case MK_f1:case MK_f2:case MK_f3:case MK_f4:
         case MK_f5:case MK_f6:case MK_f7:case MK_f8:
-        case MK_f9:case MK_f10:case MK_f11:case MK_f12: 
+        case MK_f9:case MK_f10:case MK_f11:case MK_f12:
             key=SDL_SCANCODE_F1+(defkey-MK_f1);
             break;
         case MK_rightarrow:
@@ -3477,7 +3477,7 @@ public:
         case MK_nothing: *buf = 0; return;
         case MK_f1:case MK_f2:case MK_f3:case MK_f4:
         case MK_f5:case MK_f6:case MK_f7:case MK_f8:
-        case MK_f9:case MK_f10:case MK_f11:case MK_f12: 
+        case MK_f9:case MK_f10:case MK_f11:case MK_f12:
             key=(Bitu)(SDLK_F1+(defkey-MK_f1));
             break;
         case MK_rightarrow:
@@ -3547,7 +3547,7 @@ public:
             key=SDLK_PRINT;
             break;
         case MK_home:
-            key=SDLK_HOME; 
+            key=SDLK_HOME;
             break;
         case MK_end:
             key=SDLK_END;
@@ -4139,11 +4139,11 @@ static void CreateLayout(void) {
     AddKeyButtonEvent(PX(XO + 1) - 1, PY(YO + 1), BU(1) - 1, BV(1), "8", "kp_8", KBD_kp8);
     AddKeyButtonEvent(PX(XO + 2) - 2, PY(YO + 1), BU(1) - 1, BV(1), "9", "kp_9", KBD_kp9);
     AddKeyButtonEvent(PX(XO + 3) - 3, PY(YO + 1), BU(1) - 1, BV(2), "+", "kp_plus", KBD_kpplus);
-                                     
+
     AddKeyButtonEvent(PX(XO + 0) - 0, PY(YO + 2), BU(1) - 1, BV(1), "4", "kp_4", KBD_kp4);
     AddKeyButtonEvent(PX(XO + 1) - 1, PY(YO + 2), BU(1) - 1, BV(1), "5", "kp_5", KBD_kp5);
     AddKeyButtonEvent(PX(XO + 2) - 2, PY(YO + 2), BU(1) - 1, BV(1), "6", "kp_6", KBD_kp6);
-                                     
+
     AddKeyButtonEvent(PX(XO + 0) - 0, PY(YO + 3), BU(1) - 1, BV(1), "1", "kp_1", KBD_kp1);
     AddKeyButtonEvent(PX(XO + 1) - 1, PY(YO + 3), BU(1) - 1, BV(1), "2", "kp_2", KBD_kp2);
     AddKeyButtonEvent(PX(XO + 2) - 2, PY(YO + 3), BU(1) - 1, BV(1), "3", "kp_3", KBD_kp3);
@@ -5348,9 +5348,8 @@ void MAPPER_RunInternal() {
 #if defined(C_SDL2)
     void GFX_SetResizeable(bool enable);
     GFX_SetResizeable(false);
-    mapper.window = OpenGL_using() ? GFX_SetSDLWindowMode(640,480,SCREEN_OPENGL) : GFX_SetSDLSurfaceWindow(640,480);
-    if (mapper.window == NULL) E_Exit("Could not initialize video mode for mapper: %s",SDL_GetError());
-    mapper.surface=SDL_GetWindowSurface(mapper.window);
+    mapper.window = nullptr;
+    mapper.surface = reinterpret_cast<SDL_Surface*>(GFX_SetSDLSurfaceWindow(640,480));
     if (mapper.surface == NULL) E_Exit("Could not initialize video mode for mapper: %s",SDL_GetError());
     mapper.draw_surface=SDL_CreateRGBSurface(0,640,480,8,0,0,0,0);
     // Needed for SDL_BlitScaled
@@ -5389,7 +5388,7 @@ void MAPPER_RunInternal() {
 #endif
 
     /* Go in the event loop */
-    mapper.exit=false;  
+    mapper.exit=false;
     mapper.redraw=true;
     SetActiveEvent(0);
 #if defined (REDUCE_JOYSTICK_POLLING)
@@ -5401,7 +5400,7 @@ void MAPPER_RunInternal() {
 // #endif
 
         if (mapper.redraw) {
-            mapper.redraw=false;        
+            mapper.redraw=false;
             DrawButtons();
         } else {
 #if defined(C_SDL2)

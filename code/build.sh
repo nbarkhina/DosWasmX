@@ -1,0 +1,2 @@
+touch myinput.cpp
+make

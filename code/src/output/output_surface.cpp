@@ -175,22 +175,21 @@ Bitu OUTPUT_SURFACE_SetSize()
                 (unsigned int)final_height);
         }
 
-        sdl.window = GFX_SetSDLWindowMode(final_width, final_height, SCREEN_SURFACE);
-        if (sdl.window == NULL)
-            E_Exit("Could not set windowed video mode %ix%i: %s", (int)sdl.draw.width, (int)sdl.draw.height, SDL_GetError());
+        sdl.window = nullptr;
+        sdl.surface = reinterpret_cast<SDL_Surface*>(GFX_SetSDLWindowMode(final_width, final_height, SCREEN_SURFACE));
+        if (sdl.surface == nullptr)
+          E_Exit("Could not set windowed video mode %ix%i: %s", (int)sdl.draw.width, (int)sdl.draw.height, SDL_GetError());
 
-        sdl.surface = SDL_GetWindowSurface(sdl.window);
         if (sdl.surface->w < (sdl.clip.x+sdl.clip.w) ||
             sdl.surface->h < (sdl.clip.y+sdl.clip.h)) {
             /* the window surface must not be smaller than the size we want!
              * This is a way to prevent that! */
-            SDL_SetWindowMinimumSize(sdl.window, sdl.clip.x+sdl.clip.w, sdl.clip.y+sdl.clip.h);
-            sdl.window = GFX_SetSDLWindowMode(sdl.clip.x+sdl.clip.w, sdl.clip.y+sdl.clip.h, SCREEN_SURFACE);
-            if (sdl.window == NULL)
-                E_Exit("Could not set windowed video mode %ix%i: %s", (int)sdl.draw.width, (int)sdl.draw.height, SDL_GetError());
+          sdl.window = nullptr;
+          sdl.surface = reinterpret_cast<SDL_Surface*>(GFX_SetSDLWindowMode(sdl.clip.x+sdl.clip.w, sdl.clip.y+sdl.clip.h, SCREEN_SURFACE));
+          if (sdl.surface == NULL)
+            E_Exit("Could not set windowed video mode %ix%i: %s", (int)sdl.draw.width, (int)sdl.draw.height, SDL_GetError());
         }
     }
-    sdl.surface = SDL_GetWindowSurface(sdl.window);
     if (sdl.surface == NULL)
         E_Exit("Could not retrieve window surface: %s", SDL_GetError());
     switch (sdl.surface->format->BitsPerPixel) {
@@ -448,7 +447,7 @@ retry:
             if (render.aspect) aspectCorrectFitClip(sdl.clip.w, sdl.clip.h, sdl.clip.x, sdl.clip.y, final_width, final_height);
         }
         else
-#endif 
+#endif
         /* center the screen in the window */
         {
 
@@ -594,10 +593,6 @@ retry:
 }
 #endif /*!defined(C_SDL2)*/
 
-unsigned char neil_back_buffer[16788288];
-bool neil_16_bit_color_fix = false;
-bool neil_always_use_backbuffer = true;
-
 bool OUTPUT_SURFACE_StartUpdate(uint8_t* &pixels, Bitu &pitch)
 {
 #if C_XBRZ
@@ -630,14 +625,7 @@ bool OUTPUT_SURFACE_StartUpdate(uint8_t* &pixels, Bitu &pitch)
             {
                 if (SDL_MUSTLOCK(sdl.surface) && SDL_LockSurface(sdl.surface))
                     return false;
-                if (neil_always_use_backbuffer || neil_16_bit_color_fix)
-                {
-                    pixels = neil_back_buffer;
-                }
-                else
-                {
-                    pixels = (uint8_t *)sdl.surface->pixels;
-                }
+                pixels = (uint8_t *)sdl.surface->pixels;
                 pixels += sdl.clip.y * sdl.surface->pitch;
                 pixels += sdl.clip.x * sdl.surface->format->BytesPerPixel;
                 pitch = sdl.surface->pitch;
@@ -649,67 +637,8 @@ bool OUTPUT_SURFACE_StartUpdate(uint8_t* &pixels, Bitu &pitch)
     return true;
 }
 
-extern bool showFPS;
-extern int toastTimer;
-int neilSurfaceWidth;
-int neilSurfaceHeight;
-int neilSurfacePitch;
-int neilSurfaceBpp;
-
-void neil_copy_back_buffer()
-{
-    //swap b and r
-    unsigned char* scan;
-    scan = (unsigned char*)sdl.surface->pixels;
-
-    int surfaceWidth = sdl.surface->w;
-    int surfaceHeight = sdl.surface->h;
-    int surfacePitch = sdl.surface->pitch;
-    int bpp = sdl.surface->format->BytesPerPixel;
-    neilSurfaceWidth = surfaceWidth;
-    neilSurfaceHeight = surfaceHeight;
-    neilSurfacePitch = surfacePitch;
-    neilSurfaceBpp = bpp;
-
-    char temp = 0;
-    int scanPointer = 0;
-
-    for (int i = 0; i < surfaceHeight; i++)
-    {
-        for (int j = 0; j < surfaceWidth; j++)
-        {
-            if (neil_16_bit_color_fix)
-            {
-                scan[scanPointer] = neil_back_buffer[scanPointer+2];
-                scan[scanPointer+1] = neil_back_buffer[scanPointer+1];
-                scan[scanPointer+2] = neil_back_buffer[scanPointer];
-                scan[scanPointer+3] = neil_back_buffer[scanPointer+3];
-            }
-            else
-            {
-                scan[scanPointer] = neil_back_buffer[scanPointer];
-                scan[scanPointer+1] = neil_back_buffer[scanPointer+1];
-                scan[scanPointer+2] = neil_back_buffer[scanPointer+2];
-                scan[scanPointer+3] = neil_back_buffer[scanPointer+3];
-            }
-
-            scanPointer += 4;
-        }
-    }
-}
-
-extern void neil_draw_all_text();
-
 void OUTPUT_SURFACE_EndUpdate(const uint16_t *changedLines)
 {
-    if (neil_always_use_backbuffer || neil_16_bit_color_fix)
-    {
-        neil_copy_back_buffer();
-    }
-
-    neil_draw_all_text();
-
-    //no it's here
 #if DOSBOXMENU_TYPE == DOSBOXMENU_SDLDRAW
     GFX_DrawSDLMenu(mainMenu, mainMenu.display_list);
 #endif
@@ -745,7 +674,7 @@ void OUTPUT_SURFACE_EndUpdate(const uint16_t *changedLines)
             {
                 uint32_t* clipTrg = reinterpret_cast<uint32_t*>(static_cast<char*>(sdl.surface->pixels) + clipY * sdl.surface->pitch + (unsigned int)clipX * sizeof(uint32_t));
                 xBRZ_PostScale(&xbrzBuf[0], (int)xbrzWidth, (int)xbrzHeight, (int)(xbrzWidth * sizeof(uint32_t)),
-                    &clipTrg[0], clipWidth, clipHeight, sdl.surface->pitch, 
+                    &clipTrg[0], clipWidth, clipHeight, sdl.surface->pitch,
                     sdl_xbrz.postscale_bilinear, sdl_xbrz.task_granularity);
             }
 
@@ -807,12 +736,7 @@ void OUTPUT_SURFACE_EndUpdate(const uint16_t *changedLines)
             SDL_Flip(sdl.surface);
 #endif
         }
-        else if (showFPS || toastTimer>0)
-        {
-            //NEIL always redraw the whole screen
-            SDL_UpdateWindowSurface(sdl.window);
-        }
-        else if (sdl.must_redraw_all || neil_always_use_backbuffer) {            
+        else if (sdl.must_redraw_all) {
 #if defined(C_SDL2)
             if (changedLines != NULL) SDL_UpdateWindowSurface(sdl.window);
 #else

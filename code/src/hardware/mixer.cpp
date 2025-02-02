@@ -61,6 +61,10 @@
 #include "programs.h"
 #include "midi.h"
 
+#ifdef WIN32
+extern int audioDeviceId;
+#endif
+
 #define MIXER_SSIZE 4
 #define MIXER_VOLSHIFT 13
 
@@ -916,6 +920,10 @@ static void SDLCALL MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
             mixer.prebuffer_wait = false;
     }
 
+#ifdef WIN32
+    neilAudioWritePosition = 0;
+#endif
+
     if (!mixer.prebuffer_wait && !mixer.mute) {
         int32_t *in = &mixer.work[mixer.work_out][0];
         while (need > 0) {
@@ -945,6 +953,10 @@ static void SDLCALL MIXER_CallBack(void * userdata, Uint8 *stream, int len) {
             need--;
         }
     }
+
+#ifdef WIN32
+    SDL_QueueAudio(audioDeviceId, resampled_out_buf, neilAudioWritePosition * 2);
+#endif
 
     // printf("MIXER_CallBack: %d\n", neilAudioWritePosition);
 
